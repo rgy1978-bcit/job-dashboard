@@ -1,323 +1,368 @@
 import { useState, useMemo } from "react";
 
-const C = {
-  bg:"#0d0f14", surface:"#151820", border:"#1e2433", borderHover:"#2e3a50",
-  green:"#22c55e", muted:"#4a5568", text:"#e2e8f0", textDim:"#8892a4", tag:"#1a2035",
-};
-const SRC = { Adzuna:"#3b82f6", SimplyHired:"#a855f7", Indeed:"#f59e0b", LinkedIn:"#0ea5e9" };
-const sc = s => {
-  if (!s) return "#6b7280";
-  if (s.includes("HigherEdJobs")) return "#f97316";
-  if (s.includes("PTJobSite"))    return "#06b6d4";
-  return SRC[s] || "#6b7280";
-};
+const RICK_COLOR = "#2563eb";
+const ELLEN_COLOR = "#16a34a";
 
 const PROFILES = {
   rick: {
-    label:"Rick", sub:"Education & Instructional Design", color:"#3b82f6", emoji:"📚",
-    manual_links:[
-      { label:"AECT Job Board",     url:"https://www.aect.org/careers/job_board.php",                            note:"Assoc. for Educational Comm. & Technology" },
-      { label:"Teamed — L&D Jobs",  url:"https://www.teamedforlearning.com/job-board/",                          note:"Instructional design & eLearning" },
-      { label:"EdTechJobs.io",      url:"https://www.edtechjobs.io/",                                            note:"K-12, Higher Ed, Corporate EdTech" },
-      { label:"Inside Higher Ed",   url:"https://careers.insidehighered.com/jobs/instructional-design/",         note:"University instructional design roles" },
+    label: "Rick", sub: "Education & Instructional Design",
+    color: RICK_COLOR, lightBg: "#eff6ff", borderColor: "#bfdbfe", emoji: "📚",
+    manual_links: [
+      { label: "AECT Job Board",    url: "https://www.aect.org/careers/job_board.php",                    note: "Educational Communications & Technology" },
+      { label: "Teamed — L&D",      url: "https://www.teamedforlearning.com/job-board/",                  note: "Instructional design & eLearning" },
+      { label: "EdTechJobs.io",     url: "https://www.edtechjobs.io/",                                    note: "K-12, Higher Ed, Corporate EdTech" },
+      { label: "Inside Higher Ed",  url: "https://careers.insidehighered.com/jobs/instructional-design/", note: "University roles" },
     ],
   },
   ellen: {
-    label:"Ellen", sub:"PT → Non-Clinical Transition", color:"#22c55e", emoji:"🏥",
-    manual_links:[
-      { label:"APTA Career Center",             url:"https://jobs.apta.org/",                                                                                 note:"Filter by 'non-clinical' — official PT board" },
-      { label:"The Non-Clinical PT Job Board",  url:"https://thenonclinicalpt.com/jobs/",                                                                      note:"Curated board for PT career transitions" },
-      { label:"Vivian Health — Remote PT",      url:"https://www.vivian.com/therapy/physical-therapist/remote/",                                               note:"UR, case mgmt & non-clinical remote" },
-      { label:"LinkedIn — Remote UR PT",        url:"https://www.linkedin.com/jobs/search/?keywords=utilization+review+physical+therapist&f_WT=2",              note:"Pre-filtered to Remote listings" },
-      { label:"ZipRecruiter — Remote UR (PA)",  url:"https://www.ziprecruiter.com/Jobs/Remote-Utilization-Review-Physical-Therapist/--in-Pennsylvania",         note:"~$1,600–$2,073/wk avg in PA" },
+    label: "Ellen", sub: "PT → Non-Clinical Transition",
+    color: ELLEN_COLOR, lightBg: "#f0fdf4", borderColor: "#bbf7d0", emoji: "🏥",
+    manual_links: [
+      { label: "APTA Career Center",           url: "https://jobs.apta.org/",                                                                               note: "Official PT association board" },
+      { label: "The Non-Clinical PT",          url: "https://thenonclinicalpt.com/jobs/",                                                                    note: "Curated PT career transitions" },
+      { label: "Vivian Health — Remote PT",    url: "https://www.vivian.com/therapy/physical-therapist/remote/",                                             note: "UR, case mgmt & non-clinical" },
+      { label: "LinkedIn — Remote UR PT",      url: "https://www.linkedin.com/jobs/search/?keywords=utilization+review+physical+therapist&f_WT=2",            note: "Pre-filtered to Remote" },
+      { label: "ZipRecruiter — Remote UR PA",  url: "https://www.ziprecruiter.com/Jobs/Remote-Utilization-Review-Physical-Therapist/--in-Pennsylvania",       note: "~$1,600–$2,073/wk avg in PA" },
     ],
   },
 };
 
-// Category groupings for Ellen's non-clinical roles
 const CATEGORIES = {
-  "Insurance / UR":  ["utilization review physical therapist remote","clinical reviewer physical therapist","prior authorization physical therapist","clinical appeals writer physical therapist","utilization management therapist"],
-  "Case Management": ["case manager physical therapist remote","care coordinator physical therapist"],
-  "Med Device / Sales": ["medical device clinical specialist physical therapist","orthopedic sales physical therapist"],
-  "Admin / Operations": ["rehab director physical therapist","clinical operations physical therapist"],
-  "Education / Academia": ["adjunct physical therapy faculty remote","physical therapy clinical education coordinator"],
-  "Health Tech / Coaching": ["health coach remote physical therapist","wellness coordinator physical therapist"],
+  "Insurance / UR":       ["utilization review physical therapist remote","clinical reviewer physical therapist","prior authorization physical therapist","clinical appeals writer physical therapist"],
+  "Case Management":      ["case manager physical therapist remote","care coordinator physical therapist"],
+  "Med Device / Sales":   ["medical device clinical specialist physical therapist","orthopedic sales physical therapist"],
+  "Admin / Operations":   ["rehab director physical therapist","clinical operations physical therapist"],
+  "Education":            ["adjunct physical therapy faculty remote","physical therapy clinical education coordinator"],
+  "Health Tech":          ["health coach remote physical therapist","wellness coordinator physical therapist"],
+};
+const CAT_COLORS = {
+  "Insurance / UR":     { bg:"#eff6ff", text:"#1d4ed8", border:"#bfdbfe" },
+  "Case Management":    { bg:"#f0fdf4", text:"#15803d", border:"#bbf7d0" },
+  "Med Device / Sales": { bg:"#fff7ed", text:"#c2410c", border:"#fed7aa" },
+  "Admin / Operations": { bg:"#fdf4ff", text:"#7e22ce", border:"#e9d5ff" },
+  "Education":          { bg:"#fffbeb", text:"#b45309", border:"#fde68a" },
+  "Health Tech":        { bg:"#f0fdfa", text:"#0f766e", border:"#99f6e4" },
 };
 function jobCategory(kw) {
-  for (const [cat, kws] of Object.entries(CATEGORIES)) {
-    if (kws.includes(kw)) return cat;
-  }
+  for (const [cat, kws] of Object.entries(CATEGORIES)) if (kws.includes(kw)) return cat;
   return null;
 }
 
 const MOCK_JOBS = [
-  { id:"r1", profile:"rick",  title:"Instructional Technology Specialist",    company:"Central Bucks SD",     location:"Doylestown, PA",     remote:false, description:"Support staff and students with ed-tech integration across K-12. Google Workspace and Canvas preferred.",                                                         url:"#", source:"Adzuna",      keyword:"instructional technology specialist" , salary_min:52000, salary_max:68000,  posted_at:"2026-04-28T00:00:00Z" },
-  { id:"r2", profile:"rick",  title:"EdTech Curriculum Coordinator",          company:"Chester County IU",    location:"Downingtown, PA",    remote:false, description:"Lead district-wide curriculum design with blended learning focus. PA Academic Standards required.",                                                            url:"#", source:"SimplyHired", keyword:"edtech coordinator"                  , salary_min:58000, salary_max:75000,  posted_at:"2026-04-27T00:00:00Z" },
-  { id:"r3", profile:"rick",  title:"High School Business Teacher",           company:"North Penn SD",         location:"Lansdale, PA",        remote:false, description:"Teach Principles of Business, Marketing, and Finance. NBEA certification a plus.",                                                                        url:"#", source:"Indeed",      keyword:"high school business teacher"         , salary_min:48000, salary_max:62000,  posted_at:"2026-04-25T00:00:00Z" },
-  { id:"r4", profile:"rick",  title:"Computer Science Teacher (9–12)",        company:"Pennsbury SD",          location:"Fairless Hills, PA",  remote:false, description:"Teach AP CS Principles and intro coding. Python or Scratch. Project-based learning.",                                                                    url:"#", source:"Adzuna",      keyword:"computer science teacher"             , salary_min:50000, salary_max:65000,  posted_at:"2026-04-26T00:00:00Z" },
-  { id:"r5", profile:"rick",  title:"Curriculum Developer — Digital Learning",company:"Amplify Education",    location:"Remote",              remote:true,  description:"Design standards-aligned digital curriculum for middle and high school students.",                                                                        url:"#", source:"HigherEdJobs — Instructional Technology", keyword:"curriculum developer", salary_min:65000, salary_max:85000, posted_at:"2026-04-24T00:00:00Z" },
-  { id:"r6", profile:"rick",  title:"Instructional Designer — Corporate",     company:"SEI Investments",       location:"Oaks, PA",            remote:false, description:"Create e-learning content and blended training programs using Articulate 360.",                                                                          url:"#", source:"SimplyHired", keyword:"instructional designer"               , salary_min:70000, salary_max:90000,  posted_at:"2026-04-23T00:00:00Z" },
-  { id:"e1", profile:"ellen", title:"Utilization Review Physical Therapist",  company:"eviCore (Evernorth)",  location:"Remote",              remote:true,  description:"Review PT documentation for medical necessity. Approve/deny authorizations using evidence-based criteria. Top UR employer for PTs nationally.",             url:"#", source:"Indeed",      keyword:"utilization review physical therapist remote" , salary_min:75000, salary_max:95000,  posted_at:"2026-04-28T00:00:00Z" },
-  { id:"e2", profile:"ellen", title:"Clinical Reviewer — Physical Therapist", company:"Acentra Health",       location:"Remote",              remote:true,  description:"Evaluate medical records against clinical criteria for rehab services. Collaborate with medical directors on complex cases. Active PT license required.",   url:"#", source:"Adzuna",      keyword:"clinical reviewer physical therapist"         , salary_min:72000, salary_max:90000,  posted_at:"2026-04-27T00:00:00Z" },
-  { id:"e3", profile:"ellen", title:"Prior Authorization Specialist — PT",    company:"Optum (UnitedHealth)", location:"Remote",              remote:true,  description:"Review prior auth requests for PT/OT services. Apply clinical guidelines to determine appropriate level of care. Full benefits, flexible schedule.",            url:"#", source:"SimplyHired", keyword:"prior authorization physical therapist"        , salary_min:65000, salary_max:82000,  posted_at:"2026-04-26T00:00:00Z" },
-  { id:"e4", profile:"ellen", title:"Licensed Appeal Writer",                 company:"Med-Metrix",           location:"Remote",              remote:true,  description:"Write clinical appeals for denied PT/OT/rehab claims on behalf of hospital clients. Active clinical license required. Strong writing skills essential.",        url:"#", source:"Indeed",      keyword:"clinical appeals writer physical therapist"   , salary_min:60000, salary_max:78000,  posted_at:"2026-04-25T00:00:00Z" },
-  { id:"e5", profile:"ellen", title:"Orthopedic Clinical Specialist — Sales", company:"Stryker",              location:"Philadelphia, PA",    remote:false, description:"Support ortho sales reps in OR and clinic settings. Clinical education on joint replacement and sports med product lines. PT background highly valued.",      url:"#", source:"Adzuna",      keyword:"medical device clinical specialist physical therapist", salary_min:80000, salary_max:110000, posted_at:"2026-04-24T00:00:00Z" },
-  { id:"e6", profile:"ellen", title:"Rehab Operations Director",              company:"Select Medical",       location:"Mechanicsburg, PA",   remote:false, description:"Oversee clinical operations across outpatient PT clinics in PA. Lead therapist hiring, compliance, and quality programs.",                                    url:"#", source:"PTJobSite — Non-Clinical", keyword:"rehab director physical therapist", salary_min:90000, salary_max:120000, posted_at:"2026-04-23T00:00:00Z" },
-  { id:"e7", profile:"ellen", title:"Clinical Education Coordinator — PT",    company:"Drexel University",    location:"Remote / Philadelphia",remote:true,  description:"Coordinate clinical placements and education for DPT students. Manage affiliation agreements and CI communications. Largely remote-eligible.",              url:"#", source:"HigherEdJobs — Instructional Technology", keyword:"physical therapy clinical education coordinator", salary_min:58000, salary_max:72000, posted_at:"2026-04-22T00:00:00Z" },
-  { id:"e8", profile:"ellen", title:"Remote Health Coach — MSK",              company:"Hinge Health",         location:"Remote",              remote:true,  description:"Guide members through digital MSK programs using PT expertise. Async coaching model — no live patient treatment. Flexible hours. PT license required.",    url:"#", source:"Indeed",      keyword:"health coach remote physical therapist"        , salary_min:65000, salary_max:85000,  posted_at:"2026-04-21T00:00:00Z" },
+  { id:"r1", profile:"rick",  title:"Instructional Technology Specialist",    company:"Central Bucks SD",      location:"Doylestown, PA",       remote:false, description:"Support staff and students with ed-tech integration across K-12. Google Workspace and Canvas experience preferred. Work closely with curriculum teams.",     url:"#", source:"Adzuna",      keyword:"instructional technology specialist", salary_min:52000, salary_max:68000,  posted_at:"2026-04-28T00:00:00Z" },
+  { id:"r2", profile:"rick",  title:"EdTech Curriculum Coordinator",          company:"Chester County IU",     location:"Downingtown, PA",      remote:false, description:"Lead district-wide curriculum design initiatives with a focus on blended learning models. PA Academic Standards required. Team of 4 coordinators.",          url:"#", source:"SimplyHired", keyword:"edtech coordinator",               salary_min:58000, salary_max:75000,  posted_at:"2026-04-27T00:00:00Z" },
+  { id:"r3", profile:"rick",  title:"High School Business & Marketing Teacher","company":"North Penn SD",      location:"Lansdale, PA",         remote:false, description:"Teach Principles of Business, Marketing, and Finance. NBEA certification a plus. Strong interest in student entrepreneurship programs.",                    url:"#", source:"Indeed",      keyword:"high school business teacher",        salary_min:48000, salary_max:62000,  posted_at:"2026-04-25T00:00:00Z" },
+  { id:"r4", profile:"rick",  title:"Computer Science Teacher (9–12)",        company:"Pennsbury SD",          location:"Fairless Hills, PA",   remote:false, description:"Teach AP Computer Science Principles and intro coding courses. Python or Scratch experience preferred. Project-based learning environment.",               url:"#", source:"Adzuna",      keyword:"computer science teacher",            salary_min:50000, salary_max:65000,  posted_at:"2026-04-26T00:00:00Z" },
+  { id:"r5", profile:"rick",  title:"Curriculum Developer — Digital Learning","company":"Amplify Education",  location:"Remote",               remote:true,  description:"Design standards-aligned digital curriculum for middle and high school students. Collaborate with instructional designers and content experts nationwide.", url:"#", source:"HigherEdJobs", keyword:"curriculum developer",               salary_min:65000, salary_max:85000,  posted_at:"2026-04-24T00:00:00Z" },
+  { id:"r6", profile:"rick",  title:"Instructional Designer — Corporate",     company:"SEI Investments",       location:"Oaks, PA",             remote:false, description:"Create engaging e-learning content and blended training programs using Articulate 360. Education or L&D background strongly preferred.",                  url:"#", source:"SimplyHired", keyword:"instructional designer",              salary_min:70000, salary_max:90000,  posted_at:"2026-04-23T00:00:00Z" },
+  { id:"e1", profile:"ellen", title:"Utilization Review Physical Therapist",  company:"eviCore (Evernorth)",  location:"Remote",               remote:true,  description:"Review PT documentation for medical necessity. Approve or deny insurance authorizations using evidence-based criteria. Top national UR employer for PTs.", url:"#", source:"Indeed",      keyword:"utilization review physical therapist remote", salary_min:75000, salary_max:95000,  posted_at:"2026-04-28T00:00:00Z" },
+  { id:"e2", profile:"ellen", title:"Clinical Reviewer — Physical Therapist", company:"Acentra Health",       location:"Remote",               remote:true,  description:"Evaluate medical records against clinical criteria for rehab services. Collaborate with medical directors on complex cases. Active PA PT license required.", url:"#", source:"Adzuna",      keyword:"clinical reviewer physical therapist",        salary_min:72000, salary_max:90000,  posted_at:"2026-04-27T00:00:00Z" },
+  { id:"e3", profile:"ellen", title:"Prior Authorization Specialist",         company:"Optum (UnitedHealth)", location:"Remote",               remote:true,  description:"Review prior auth requests for PT and OT services. Apply evidence-based clinical guidelines to determine appropriate level of care. Full benefits.",       url:"#", source:"SimplyHired", keyword:"prior authorization physical therapist",       salary_min:65000, salary_max:82000,  posted_at:"2026-04-26T00:00:00Z" },
+  { id:"e4", profile:"ellen", title:"Licensed Appeal Writer",                 company:"Med-Metrix",           location:"Remote",               remote:true,  description:"Write clinical appeals for denied PT/OT/rehab claims on behalf of hospital clients. Active PT license required. Strong writing and analytical skills.",   url:"#", source:"Indeed",      keyword:"clinical appeals writer physical therapist",   salary_min:60000, salary_max:78000,  posted_at:"2026-04-25T00:00:00Z" },
+  { id:"e5", profile:"ellen", title:"Orthopedic Clinical Specialist — Sales", company:"Stryker",              location:"Philadelphia, PA",     remote:false, description:"Support orthopedic sales reps in OR and clinic settings. Provide clinical education on joint replacement and sports med product lines. PT background valued.", url:"#", source:"Adzuna",      keyword:"medical device clinical specialist physical therapist", salary_min:80000, salary_max:110000, posted_at:"2026-04-24T00:00:00Z" },
+  { id:"e6", profile:"ellen", title:"Rehab Operations Director",              company:"Select Medical",       location:"Mechanicsburg, PA",    remote:false, description:"Oversee clinical operations across outpatient PT clinics in the PA region. Lead therapist hiring, compliance, and quality improvement programs.",          url:"#", source:"PTJobSite",   keyword:"rehab director physical therapist",            salary_min:90000, salary_max:120000, posted_at:"2026-04-23T00:00:00Z" },
+  { id:"e7", profile:"ellen", title:"Clinical Education Coordinator",         company:"Drexel University",    location:"Remote / Philadelphia",remote:true,  description:"Coordinate clinical placements for DPT students. Manage affiliation agreements and CI communications. Largely remote-eligible with occasional campus visits.", url:"#", source:"HigherEdJobs", keyword:"physical therapy clinical education coordinator", salary_min:58000, salary_max:72000, posted_at:"2026-04-22T00:00:00Z" },
+  { id:"e8", profile:"ellen", title:"Remote Health Coach — MSK",              company:"Hinge Health",         location:"Remote",               remote:true,  description:"Guide members through digital MSK programs using PT expertise. Async coaching model with no live patient treatment. Flexible schedule. PT license required.", url:"#", source:"Indeed",      keyword:"health coach remote physical therapist",       salary_min:65000, salary_max:85000,  posted_at:"2026-04-21T00:00:00Z" },
 ];
 
 const fmtSal = (min, max) => {
   if (!min && !max) return null;
   const f = n => "$" + Math.round(n/1000) + "k";
-  return min && max ? `${f(min)} – ${f(max)}` : min ? `${f(min)}+` : `up to ${f(max)}`;
+  return min && max ? `${f(min)} – ${f(max)}/yr` : min ? `${f(min)}+/yr` : `up to ${f(max)}/yr`;
 };
 const daysAgo = iso => {
   if (!iso) return null;
   const d = Math.floor((Date.now()-new Date(iso))/86400000);
-  return d===0?"Today":d===1?"Yesterday":`${d}d ago`;
+  return d===0?"Posted today":d===1?"Posted yesterday":`Posted ${d} days ago`;
 };
 
-function Chip({ label, active, onClick, color }) {
-  return (
-    <button onClick={onClick} style={{
-      padding:"4px 10px", borderRadius:20, cursor:"pointer", fontSize:11, fontFamily:"monospace",
-      border:`1px solid ${active?(color||"#3b82f6"):C.border}`,
-      background:active?(color?color+"22":"#1d3a6e"):"transparent",
-      color:active?(color||"#3b82f6"):C.textDim, transition:"all .15s", whiteSpace:"nowrap",
-    }}>{label}</button>
-  );
-}
-
-function JobCard({ job, profileColor, showCategory }) {
-  const [open, setOpen] = useState(false);
-  const age = daysAgo(job.posted_at);
-  const pay = fmtSal(job.salary_min, job.salary_max);
-  const c   = sc(job.source);
-  const cat = jobCategory(job.keyword);
-  return (
-    <div onClick={()=>setOpen(!open)} style={{
-      background:C.surface, borderRadius:10, padding:"14px 16px", cursor:"pointer",
-      border:`1px solid ${open?C.borderHover:C.border}`, borderLeft:`3px solid ${profileColor}`,
-      transition:"border-color .15s",
-    }}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
-        <div style={{flex:1}}>
-          <div style={{color:C.text,fontWeight:600,fontSize:13,lineHeight:1.3}}>{job.title}</div>
-          <div style={{color:C.textDim,fontSize:12,marginTop:2}}>
-            {job.company}{job.location&&<span style={{color:C.muted}}> · {job.location}</span>}
-          </div>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
-          <span style={{fontSize:9,fontWeight:700,color:c,background:c+"18",padding:"2px 6px",borderRadius:10,fontFamily:"monospace",textTransform:"uppercase",letterSpacing:0.5}}>{job.source}</span>
-          {age&&<span style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{age}</span>}
-        </div>
-      </div>
-      <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
-        {job.remote&&(
-          <span style={{fontSize:10,background:"#0f2a1a",color:C.green,padding:"2px 7px",borderRadius:4,fontFamily:"monospace",fontWeight:700}}>⌂ Remote</span>
-        )}
-        {showCategory&&cat&&(
-          <span style={{fontSize:10,background:"#1a1f2e",color:"#a78bfa",padding:"2px 7px",borderRadius:4,fontFamily:"monospace"}}>{cat}</span>
-        )}
-        {pay&&<span style={{fontSize:10,background:C.tag,color:C.green,padding:"2px 6px",borderRadius:4,fontFamily:"monospace"}}>{pay}</span>}
-      </div>
-      {open&&job.description&&(
-        <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`,color:C.textDim,fontSize:12,lineHeight:1.6}}>
-          {job.description}
-          <div style={{marginTop:8,fontSize:11,color:profileColor}}>View full listing →</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProfileTab({ id, active, onClick }) {
-  const p = PROFILES[id];
-  return (
-    <button onClick={onClick} style={{
-      flex:1,padding:"12px 14px",cursor:"pointer",fontFamily:"system-ui",
-      background:active?C.surface:"transparent",
-      border:`1px solid ${active?p.color+"55":C.border}`,
-      borderBottom:active?`2px solid ${p.color}`:`1px solid ${C.border}`,
-      borderRadius:10,transition:"all .2s",
-    }}>
-      <div style={{fontSize:16,marginBottom:3}}>{p.emoji}</div>
-      <div style={{color:active?p.color:C.textDim,fontWeight:600,fontSize:13}}>{p.label}</div>
-      <div style={{color:C.muted,fontSize:11,marginTop:1}}>{p.sub}</div>
-    </button>
-  );
-}
-
-function ManualLinks({ links, color }) {
-  return (
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 16px"}}>
-      <div style={{fontSize:10,color:C.muted,fontFamily:"monospace",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>📌 Also Check Manually</div>
-      <div style={{display:"flex",flexDirection:"column",gap:7}}>
-        {links.map((lnk,i)=>(
-          <a key={i} href={lnk.url} target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>
-            <div style={{padding:"8px 10px",borderRadius:7,border:`1px solid ${C.border}`,background:"#0d0f14",transition:"border-color .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=color+"66"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}
-            >
-              <div style={{color,fontWeight:600,fontSize:12}}>{lnk.label} ↗</div>
-              <div style={{color:C.muted,fontSize:11,marginTop:1}}>{lnk.note}</div>
-            </div>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SourcesPanel({ profileJobs, activeProfile }) {
-  const bySource = {};
-  profileJobs.forEach(j=>{bySource[j.source]=(bySource[j.source]||0)+1;});
-  return (
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:10}}>
-      <div style={{fontSize:10,color:C.muted,fontFamily:"monospace",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Auto-Scraped Sources</div>
-      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-        {Object.entries(bySource).map(([src,n])=>(
-          <div key={src} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{color:sc(src),fontSize:11,fontWeight:600}}>{src}</span>
-            <span style={{color:C.muted,fontSize:10,fontFamily:"monospace"}}>{n}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const SRC_COLORS = {
+  Adzuna:"#2563eb", SimplyHired:"#7c3aed", Indeed:"#d97706",
+  LinkedIn:"#0284c7", HigherEdJobs:"#ea580c", PTJobSite:"#0891b2",
+};
+const srcColor = s => SRC_COLORS[s] || "#6b7280";
 
 export default function App() {
-  const [activeProfile, setActive] = useState("ellen");
-  const [search, setSearch]        = useState("");
-  const [catFilter, setCat]        = useState("All");
-  const [remoteOnly, setRemote]    = useState(false);
-  const [sort, setSort]            = useState("newest");
+  const [active, setActive]       = useState("ellen");
+  const [search, setSearch]       = useState("");
+  const [catFilter, setCat]       = useState("All");
+  const [remoteOnly, setRemote]   = useState(false);
+  const [sort, setSort]           = useState("newest");
+  const [expanded, setExpanded]   = useState(null);
 
-  const profile     = PROFILES[activeProfile];
-  const profileJobs = MOCK_JOBS.filter(j=>j.profile===activeProfile);
-  const isEllen     = activeProfile==="ellen";
+  const profile     = PROFILES[active];
+  const isEllen     = active === "ellen";
+  const profileJobs = MOCK_JOBS.filter(j => j.profile === active);
 
-  const cats = useMemo(()=>{
+  const cats = useMemo(() => {
     if (!isEllen) return [];
     const seen = new Set();
-    profileJobs.forEach(j=>{ const c=jobCategory(j.keyword); if(c) seen.add(c); });
-    return ["All",...seen];
-  },[activeProfile]);
+    profileJobs.forEach(j => { const c = jobCategory(j.keyword); if (c) seen.add(c); });
+    return ["All", ...seen];
+  }, [active]);
 
-  const bySource = useMemo(()=>{const m={};profileJobs.forEach(j=>{m[j.source]=(m[j.source]||0)+1;});return m;},[activeProfile]);
-
-  const filtered = useMemo(()=>{
+  const filtered = useMemo(() => {
     let out = profileJobs;
-    if (isEllen&&catFilter!=="All") out=out.filter(j=>jobCategory(j.keyword)===catFilter);
-    if (remoteOnly) out=out.filter(j=>j.remote);
-    if (search.trim()){
-      const q=search.toLowerCase();
-      out=out.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location?.toLowerCase().includes(q)||j.description?.toLowerCase().includes(q));
+    if (isEllen && catFilter !== "All") out = out.filter(j => jobCategory(j.keyword) === catFilter);
+    if (remoteOnly) out = out.filter(j => j.remote);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      out = out.filter(j => j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q) || j.location?.toLowerCase().includes(q) || j.description?.toLowerCase().includes(q));
     }
-    if (sort==="newest") out=[...out].sort((a,b)=>b.posted_at>a.posted_at?1:-1);
-    if (sort==="salary") out=[...out].sort((a,b)=>(b.salary_max||0)-(a.salary_max||0));
+    if (sort === "newest") out = [...out].sort((a,b) => b.posted_at > a.posted_at ? 1 : -1);
+    if (sort === "salary") out = [...out].sort((a,b) => (b.salary_max||0) - (a.salary_max||0));
     return out;
-  },[activeProfile,search,catFilter,remoteOnly,sort]);
+  }, [active, search, catFilter, remoteOnly, sort]);
 
-  const remoteCount = profileJobs.filter(j=>j.remote).length;
+  const remoteCount = profileJobs.filter(j => j.remote).length;
+  const switchProfile = id => { setActive(id); setSearch(""); setCat("All"); setRemote(false); setExpanded(null); };
 
-  const switchProfile = id=>{setActive(id);setSearch("");setCat("All");setRemote(false);};
+  const styles = `
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; }
+    .dash { max-width: 1100px; margin: 0 auto; padding: 28px 16px 60px; }
+    .topbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 16px; position: sticky; top: 0; z-index: 10; }
+    .topbar-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .logo { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px; }
+    .logo span { color: ${profile.color}; }
+    .sync-badge { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0; }
+    .profile-tabs { display: flex; gap: 8px; margin: 24px 0 20px; }
+    .tab { flex: 1; padding: 16px 20px; border-radius: 14px; border: 2px solid #e2e8f0; background: white; cursor: pointer; text-align: left; transition: all .2s; }
+    .tab:hover { border-color: #cbd5e1; }
+    .tab.active-rick { border-color: ${RICK_COLOR}; background: #eff6ff; }
+    .tab.active-ellen { border-color: ${ELLEN_COLOR}; background: #f0fdf4; }
+    .tab-emoji { font-size: 22px; margin-bottom: 6px; }
+    .tab-name { font-size: 16px; font-weight: 700; color: #0f172a; }
+    .tab-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .stat { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; }
+    .stat-num { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+    .stat-lbl { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .controls { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .search-row { display: flex; gap: 10px; align-items: center; }
+    .search-input { flex: 1; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 15px; font-family: inherit; outline: none; transition: border .15s; }
+    .search-input:focus { border-color: var(--pc); }
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .filter-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+    .chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: white; font-size: 13px; font-family: inherit; cursor: pointer; transition: all .15s; color: #475569; font-weight: 500; }
+    .chip:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .chip.on { color: white; border-color: transparent; }
+    .chip.remote-on { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .sort-row { display: flex; gap: 6px; margin-left: auto; }
+    .layout { display: grid; grid-template-columns: 1fr 240px; gap: 20px; align-items: flex-start; }
+    .jobs-grid { display: flex; flex-direction: column; gap: 12px; }
+    .job-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; overflow: hidden; transition: border-color .15s, box-shadow .15s; cursor: pointer; }
+    .job-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .job-card-top { display: flex; gap: 14px; padding: 18px 20px; }
+    .job-logo { width: 46px; height: 46px; border-radius: 10px; border: 1.5px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; background: #f8fafc; }
+    .job-main { flex: 1; min-width: 0; }
+    .job-title { font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1.3; margin-bottom: 3px; }
+    .job-company { font-size: 14px; color: #475569; }
+    .job-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-remote { background: #dcfce7; color: #15803d; }
+    .badge-salary { background: #eff6ff; color: #1d4ed8; }
+    .badge-source { background: #f1f5f9; color: #475569; }
+    .badge-date { background: #f8fafc; color: #94a3b8; }
+    .job-desc { padding: 0 20px 18px; border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 14px; color: #475569; line-height: 1.7; }
+    .job-link { display: inline-block; margin-top: 10px; color: var(--pc); font-size: 13px; font-weight: 600; text-decoration: none; }
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+    .side-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 16px; }
+    .side-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .link-item { display: block; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 8px; text-decoration: none; transition: border-color .15s; }
+    .link-item:hover { border-color: var(--pc); }
+    .link-item:last-child { margin-bottom: 0; }
+    .link-name { font-size: 13px; font-weight: 600; color: var(--pc); }
+    .link-note { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .src-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .src-row:last-child { border-bottom: none; }
+    .ur-item { padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #374151; }
+    .ur-item:last-child { border-bottom: none; }
+    .count-badge { background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+    .empty { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 15px; }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .profile-tabs { flex-direction: column; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .sort-row { margin-left: 0; }
+    }
+  `;
+
+  const pc = profile.color;
 
   return (
-    <div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"system-ui,sans-serif",padding:"24px 16px 60px"}}>
-      <style>{`*{box-sizing:border-box;margin:0;padding:0}input::placeholder{color:${C.muted}}a{text-decoration:none}`}</style>
-      <div style={{maxWidth:960,margin:"0 auto"}}>
+    <>
+      <style>{styles}</style>
+      <div style={{"--pc": pc}}>
 
-        <div style={{marginBottom:18}}>
-          <h1 style={{fontSize:22,fontWeight:700,letterSpacing:-0.5}}>
-            Job Board <span style={{color:profile.color}}>Dashboard</span>
-          </h1>
-          <div style={{color:C.textDim,fontSize:11,marginTop:3,fontFamily:"monospace"}}>
-            Auto-refreshes Mon · Wed · Fri · Last sync: Apr 29, 7:00 AM
+        {/* Top bar */}
+        <div className="topbar">
+          <div className="topbar-inner">
+            <div className="logo">Job<span>Board</span></div>
+            <div className="sync-badge">Last sync: Apr 29 · Auto Mon/Wed/Fri</div>
           </div>
         </div>
 
-        {/* Profile Tabs */}
-        <div style={{display:"flex",gap:10,marginBottom:18}}>
-          {Object.keys(PROFILES).map(id=><ProfileTab key={id} id={id} active={activeProfile===id} onClick={()=>switchProfile(id)}/>)}
-        </div>
+        <div className="dash">
 
-        <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-          {/* Main column */}
-          <div style={{flex:1,minWidth:0}}>
+          {/* Profile tabs */}
+          <div className="profile-tabs">
+            {Object.entries(PROFILES).map(([id, p]) => (
+              <button key={id} className={`tab ${active===id ? `active-${id}` : ""}`} onClick={() => switchProfile(id)}>
+                <div className="tab-emoji">{p.emoji}</div>
+                <div className="tab-name" style={{color: active===id ? p.color : "#0f172a"}}>{p.label}</div>
+                <div className="tab-sub">{p.sub}</div>
+              </button>
+            ))}
+          </div>
 
-            {/* Stats row */}
-            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-              {[["Total",profileJobs.length,profile.color],["Remote",remoteCount,C.green],...Object.entries(bySource).map(([s,n])=>[s,n,sc(s)])].map(([lbl,val,col])=>(
-                <div key={lbl} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",flex:1,minWidth:60}}>
-                  <div style={{fontSize:20,fontWeight:700,color:col,fontFamily:"monospace"}}>{val}</div>
-                  <div style={{fontSize:9,color:C.textDim,textTransform:"uppercase",letterSpacing:1,marginTop:1}}>{lbl}</div>
+          {/* Stats */}
+          <div className="stats">
+            <div className="stat">
+              <div className="stat-num" style={{color: pc}}>{profileJobs.length}</div>
+              <div className="stat-lbl">Total Jobs</div>
+            </div>
+            <div className="stat">
+              <div className="stat-num" style={{color: "#16a34a"}}>{remoteCount}</div>
+              <div className="stat-lbl">Remote</div>
+            </div>
+            <div className="stat">
+              <div className="stat-num" style={{color: "#d97706"}}>
+                {profileJobs.filter(j=>j.salary_max).length ? "$" + Math.round(Math.max(...profileJobs.filter(j=>j.salary_max).map(j=>j.salary_max))/1000) + "k" : "—"}
+              </div>
+              <div className="stat-lbl">Top Salary</div>
+            </div>
+            <div className="stat">
+              <div className="stat-num" style={{color: "#7c3aed"}}>{filtered.length}</div>
+              <div className="stat-lbl">Showing</div>
+            </div>
+          </div>
+
+          <div className="layout">
+            {/* Main column */}
+            <div>
+              {/* Controls */}
+              <div className="controls">
+                <div className="search-row">
+                  <input
+                    className="search-input"
+                    style={{"--pc": pc}}
+                    placeholder={`Search ${profile.label}'s listings…`}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
                 </div>
-              ))}
-            </div>
 
-            {/* Search */}
-            <input value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder={`Search ${profile.label}'s listings…`}
-              style={{width:"100%",padding:"9px 12px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:13,outline:"none",marginBottom:10}}
-            />
+                {isEllen && (
+                  <div className="filter-row">
+                    <span className="filter-label">Type</span>
+                    {cats.map(c => {
+                      const cc = c !== "All" ? CAT_COLORS[c] : null;
+                      const isOn = catFilter === c;
+                      return (
+                        <button key={c} className="chip" onClick={() => setCat(c)}
+                          style={isOn && cc ? {background: cc.bg, color: cc.text, borderColor: cc.border} :
+                                 isOn ? {background: pc, color: "white", borderColor: pc} : {}}>
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-            {/* Ellen category filter */}
-            {isEllen&&(
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
-                <span style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>TYPE</span>
-                {cats.map(cat=><Chip key={cat} label={cat} active={catFilter===cat} onClick={()=>setCat(cat)} color={profile.color}/>)}
+                <div className="filter-row">
+                  <button className={`chip ${remoteOnly ? "remote-on" : ""}`} onClick={() => setRemote(!remoteOnly)}>
+                    ⌂ Remote only
+                  </button>
+                  <div className="sort-row">
+                    <span className="filter-label">Sort</span>
+                    {[["newest","Newest first"],["salary","Highest salary"]].map(([v,lbl]) => (
+                      <button key={v} className="chip on" onClick={() => setSort(v)}
+                        style={sort===v ? {background: pc, borderColor: pc} : {background: "white", color: "#475569", borderColor: "#e2e8f0"}}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            )}
 
-            {/* Remote toggle + sort */}
-            <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
-              <button onClick={()=>setRemote(!remoteOnly)} style={{
-                padding:"4px 10px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"monospace",
-                border:`1px solid ${remoteOnly?C.green:C.border}`,
-                background:remoteOnly?"#0f2a1a":"transparent",
-                color:remoteOnly?C.green:C.textDim,transition:"all .15s",
-              }}>⌂ Remote Only</button>
-              <div style={{marginLeft:"auto",display:"flex",gap:5}}>
-                <Chip label="↓ Newest" active={sort==="newest"} onClick={()=>setSort("newest")} color={profile.color}/>
-                <Chip label="↓ Salary" active={sort==="salary"} onClick={()=>setSort("salary")} color={profile.color}/>
+              {/* Job cards */}
+              <div className="jobs-grid">
+                {filtered.length === 0 ? (
+                  <div className="empty">No listings match your filters.</div>
+                ) : filtered.map(job => {
+                  const pay = fmtSal(job.salary_min, job.salary_max);
+                  const age = daysAgo(job.posted_at);
+                  const cat = jobCategory(job.keyword);
+                  const cc  = cat ? CAT_COLORS[cat] : null;
+                  const isOpen = expanded === job.id;
+                  return (
+                    <div key={job.id} className="job-card" style={{borderLeftColor: isOpen ? pc : undefined, borderLeftWidth: isOpen ? 3 : undefined}}>
+                      <div className="job-card-top" onClick={() => setExpanded(isOpen ? null : job.id)}>
+                        <div className="job-logo">{job.profile === "rick" ? "📚" : "🏥"}</div>
+                        <div className="job-main">
+                          <div className="job-title">{job.title}</div>
+                          <div className="job-company">{job.company} &middot; {job.location}</div>
+                          <div className="job-meta">
+                            {job.remote && <span className="badge badge-remote">⌂ Remote</span>}
+                            {pay && <span className="badge badge-salary">{pay}</span>}
+                            {cc && cat && <span className="badge" style={{background: cc.bg, color: cc.text}}>{cat}</span>}
+                            <span className="badge badge-source" style={{color: srcColor(job.source)}}>{job.source}</span>
+                            <span className="badge badge-date">{age}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {isOpen && (
+                        <div className="job-desc">
+                          {job.description}
+                          <br/>
+                          <a href={job.url} className="job-link" style={{"--pc": pc}}>View full listing →</a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div style={{fontSize:11,color:C.muted,fontFamily:"monospace",marginBottom:10}}>
-              {filtered.length} of {profileJobs.length} listings{remoteOnly&&` · remote only`}
-            </div>
-
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {filtered.length===0
-                ?<div style={{textAlign:"center",color:C.muted,padding:40,fontFamily:"monospace"}}>No jobs match your filters.</div>
-                :filtered.map(j=><JobCard key={j.id} job={j} profileColor={profile.color} showCategory={isEllen}/>)
-              }
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div style={{width:215,flexShrink:0}}>
-            <ManualLinks links={profile.manual_links} color={profile.color}/>
-            <SourcesPanel profileJobs={profileJobs} activeProfile={activeProfile}/>
-            {isEllen&&(
-              <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:10}}>
-                <div style={{fontSize:10,color:C.muted,fontFamily:"monospace",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Top UR Employers</div>
-                {["eviCore (Evernorth)","Acentra Health","Optum / UnitedHealth","BCBS plans","Cigna / Evernorth","Aetna / CVS Health"].map(e=>(
-                  <div key={e} style={{fontSize:11,color:C.textDim,padding:"3px 0",borderBottom:`1px solid ${C.border}`}}>{e}</div>
+            {/* Sidebar */}
+            <div className="sidebar">
+              <div className="side-card">
+                <div className="side-title">📌 Also check manually</div>
+                {profile.manual_links.map((lnk, i) => (
+                  <a key={i} href={lnk.url} target="_blank" rel="noreferrer" className="link-item" style={{"--pc": pc}}>
+                    <div className="link-name">{lnk.label} ↗</div>
+                    <div className="link-note">{lnk.note}</div>
+                  </a>
                 ))}
-                <div style={{fontSize:10,color:C.muted,marginTop:7}}>Most UR roles are fully remote with PA license accepted</div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <div style={{marginTop:32,textAlign:"center",color:C.muted,fontSize:10,fontFamily:"monospace"}}>
-          Scraped via GitHub Actions · Click card to expand · Sidebar links open external boards
+              <div className="side-card">
+                <div className="side-title">Auto-scraped sources</div>
+                {Object.entries((() => { const m={}; profileJobs.forEach(j=>{m[j.source]=(m[j.source]||0)+1;}); return m; })()).map(([src, n]) => (
+                  <div key={src} className="src-row">
+                    <span style={{color: srcColor(src), fontWeight: 600}}>{src}</span>
+                    <span className="count-badge">{n}</span>
+                  </div>
+                ))}
+              </div>
+
+              {isEllen && (
+                <div className="side-card">
+                  <div className="side-title">Top UR employers</div>
+                  {["eviCore (Evernorth)","Acentra Health","Optum / UnitedHealth","BCBS plans","Cigna / Evernorth","Aetna / CVS Health"].map(e => (
+                    <div key={e} className="ur-item">{e}</div>
+                  ))}
+                  <div style={{fontSize:11, color:"#94a3b8", marginTop:8}}>Most roles fully remote with PA license</div>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
+    </>
   );
 }
