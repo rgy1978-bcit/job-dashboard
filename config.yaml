@@ -1,95 +1,151 @@
-# ============================================================
-#  Job Dashboard — Configuration
-# ============================================================
-
 max_age_days: 30
-
 adzuna:
   country: us
   results_per_keyword: 20
-
 profiles:
-
   rick:
-    label: "Rick — Education & Instructional Design"
-    color: "#3b82f6"
-    location: "Pennsylvania"
+    label: Rick — Education & Instructional Design
+    color: '#2563eb'
+    location: Pittsburgh, Pennsylvania
     keywords:
-      - "instructional technology specialist"
-      - "edtech coordinator"
-      - "curriculum developer"
-      - "high school business teacher"
-      - "computer science teacher"
-      - "instructional designer"
-      - "learning experience designer"
-      - "learning and development specialist"
-      - "training specialist"
+    - instructional technology specialist
+    - edtech coordinator
+    - curriculum developer
+    - high school business teacher
+    - computer science teacher
+    - instructional designer
+    - learning experience designer
+    - learning and development specialist
+    - training specialist
+    - adjunct business professor
+    - assistant professor business administration
+    - lecturer business Pittsburgh
+    - adjunct instructor finance accounting
+    - visiting professor business
+    - adjunct professor artificial intelligence
+    - lecturer computer science higher education
+    - assistant professor educational technology
+    - adjunct instructor data analytics
+    - adjunct professor education
+    - assistant professor curriculum instruction
+    - lecturer teacher education
+    - adjunct faculty instructional technology
+    - visiting lecturer online learning
+    remote_keywords:
+    - instructional designer remote
+    - curriculum developer remote
+    - learning experience designer remote
+    - learning and development remote
+    - instructional technology remote
     static_rss:
-      - label: "HigherEdJobs — Instructional Technology"
-        url: "https://www.higheredjobs.com/rss/categoryFeed.cfm?catID=69"
+    - label: HigherEdJobs — Instructional Technology
+      url: https://www.higheredjobs.com/rss/categoryFeed.cfm?catID=69
+    - label: HigherEdJobs — Business
+      url: https://www.higheredjobs.com/rss/categoryFeed.cfm?catID=35
+    - label: HigherEdJobs — Education
+      url: https://www.higheredjobs.com/rss/categoryFeed.cfm?catID=54
     manual_links:
-      - label: "AECT Job Board"
-        url: "https://www.aect.org/careers/job_board.php"
-        note: "Association for Educational Communications & Technology"
-      - label: "Teamed — L&D Jobs"
-        url: "https://www.teamedforlearning.com/job-board/"
-        note: "Instructional design & eLearning specialists"
-      - label: "EdTechJobs.io"
-        url: "https://www.edtechjobs.io/"
-        note: "K-12, Higher Ed, Corporate EdTech"
-      - label: "Inside Higher Ed Careers"
-        url: "https://careers.insidehighered.com/jobs/instructional-design/"
-        note: "University instructional design roles"
-
+    - label: AECT Job Board
+      url: https://www.aect.org/careers/job_board.php
+      note: Assoc. for Educational Comm. & Technology
+    - label: Teamed — L&D Jobs
+      url: https://www.teamedforlearning.com/job-board/
+      note: Instructional design & eLearning specialists
+    - label: EdTechJobs.io
+      url: https://www.edtechjobs.io/
+      note: K-12, Higher Ed, Corporate EdTech
+    - label: Inside Higher Ed Careers
+      url: https://careers.insidehighered.com/jobs/instructional-design/
+      note: University instructional design roles
+    - label: USAJobs — Pittsburgh Ed & Training
+      url: https://www.usajobs.gov/Search/Results?k=instructional+technology&l=Pittsburgh%2C+PA
+      note: Federal roles in ed-tech & training
+    - label: LinkedIn — Pittsburgh Instructional Design
+      url: https://www.linkedin.com/jobs/search/?keywords=instructional+designer&location=Pittsburgh%2C+Pennsylvania
+      note: 20M+ listings, check weekly
+    - label: Dice — EdTech & CS Teaching
+      url: https://www.dice.com/jobs?q=instructional+technology&location=Pittsburgh%2C+PA
+      note: Tech-focused, good for CS teacher roles
+    - label: CareerBuilder — Pittsburgh Education
+      url: https://www.careerbuilder.com/jobs?keywords=instructional+technology&location=Pittsburgh%2C+PA
+      note: 2.4M+ applications/month
+    - label: Monster — Pittsburgh Education Jobs
+      url: https://www.monster.com/jobs/search?q=instructional+designer&where=Pittsburgh%2C+PA
+      note: 5M+ app downloads, broad coverage
+    - label: HigherEdJobs — Pittsburgh Area
+      url: https://www.higheredjobs.com/search/advanced_action.cfm?Keyword=business+AI+education&Region=41&PosType=1
+      note: Filter set to Pittsburgh region faculty roles
+    - label: Chronicle of Higher Ed Jobs
+      url: https://jobs.chronicle.com/jobs/faculty/?location=pittsburgh
+      note: Premium higher ed job board, faculty focus
+    - label: Academic Keys — Business & Ed
+      url: https://business.academickeys.com/
+      note: Faculty & staff roles in business schools
+    - label: LinkedIn — Pittsburgh Higher Ed
+      url: https://www.linkedin.com/jobs/search/?keywords=adjunct+professor+business&location=Pittsburgh%2C+Pennsylvania
+      note: Adjunct and full-time faculty listings
   ellen:
-    label: "Ellen — PT Non-Clinical Transition"
-    color: "#22c55e"
-    # No location lock — remote roles are the priority
-    location: ""
+    label: Ellen — PT Transition + Pediatric Backup
+    color: '#16a34a'
+    location: Pittsburgh, Pennsylvania
     keywords:
-      # --- Insurance / payer (mostly fully remote) ---
-      - "utilization review physical therapist remote"
-      - "clinical reviewer physical therapist"
-      - "prior authorization physical therapist"
-      - "clinical appeals writer physical therapist"
-      - "utilization management therapist"
-      # --- Case management ---
-      - "case manager physical therapist remote"
-      - "care coordinator physical therapist"
-      # --- Healthcare consulting & admin ---
-      - "healthcare consultant physical therapist"
-      - "rehab director physical therapist"
-      - "clinical operations physical therapist"
-      # --- Med device / health tech ---
-      - "medical device clinical specialist physical therapist"
-      - "orthopedic sales physical therapist"
-      - "clinical education specialist physical therapist"
-      # --- Academia / education ---
-      - "adjunct physical therapy faculty remote"
-      - "physical therapy clinical education coordinator"
-      # --- Wellness / health coaching ---
-      - "health coach remote physical therapist"
-      - "wellness coordinator physical therapist"
+    - rehab director physical therapist
+    - clinical operations physical therapist
+    - medical device clinical specialist physical therapist
+    - orthopedic sales physical therapist
+    - physical therapy clinical education coordinator
+    - wellness coordinator physical therapist
+    - pediatric physical therapist
+    - physical therapist pediatrics
+    - pediatric PT outpatient
+    - physical therapist childrens hospital
+    - early intervention physical therapist
+    - school physical therapist
+    remote_keywords:
+    - utilization review physical therapist remote
+    - clinical reviewer physical therapist remote
+    - prior authorization physical therapist remote
+    - clinical appeals writer physical therapist
+    - utilization management therapist remote
+    - case manager physical therapist remote
+    - care coordinator physical therapist remote
+    - health coach remote physical therapist
+    - healthcare consultant physical therapist remote
+    - adjunct physical therapy faculty remote
     static_rss:
-      - label: "PTJobSite — Non-Clinical"
-        url: "https://www.ptjobsite.com/rss/jobs?l=Pennsylvania"
+    - label: PTJobSite — Pittsburgh
+      url: https://www.ptjobsite.com/rss/jobs?l=Pittsburgh%2C+PA
     manual_links:
-      - label: "APTA Career Center"
-        url: "https://jobs.apta.org/"
-        note: "Filter by 'non-clinical' — official PT association board"
-      - label: "The Non-Clinical PT Job Board"
-        url: "https://thenonclinicalpt.com/jobs/"
-        note: "Curated board specifically for PT career transitions"
-      - label: "Vivian Health — Remote PT"
-        url: "https://www.vivian.com/therapy/physical-therapist/remote/"
-        note: "UR, case mgmt & non-clinical remote roles"
-      - label: "LinkedIn — Remote UR Physical Therapist"
-        url: "https://www.linkedin.com/jobs/search/?keywords=utilization+review+physical+therapist&f_WT=2"
-        note: "Filter pre-set to Remote — check weekly"
-      - label: "ZipRecruiter — Remote UR PT (PA)"
-        url: "https://www.ziprecruiter.com/Jobs/Remote-Utilization-Review-Physical-Therapist/--in-Pennsylvania"
-        note: "~$1,600–$2,073/wk avg in PA per ZipRecruiter"
-
+    - label: APTA Career Center
+      url: https://jobs.apta.org/
+      note: Filter by 'non-clinical' — official PT board
+    - label: The Non-Clinical PT Job Board
+      url: https://thenonclinicalpt.com/jobs/
+      note: Curated board for PT career transitions
+    - label: Vivian Health — Remote PT
+      url: https://www.vivian.com/therapy/physical-therapist/remote/
+      note: UR, case mgmt & non-clinical remote roles
+    - label: LinkedIn — Remote UR PT
+      url: https://www.linkedin.com/jobs/search/?keywords=utilization+review+physical+therapist&f_WT=2
+      note: Pre-filtered to Remote listings
+    - label: ZipRecruiter — Remote UR (PA)
+      url: https://www.ziprecruiter.com/Jobs/Remote-Utilization-Review-Physical-Therapist/--in-Pennsylvania
+      note: ~$1,600–$2,073/wk avg in PA
+    - label: FlexJobs — Remote Healthcare
+      url: https://www.flexjobs.com/jobs/healthcare
+      note: 100K vetted remote listings, no scams
+    - label: CareerBuilder — Pittsburgh PT
+      url: https://www.careerbuilder.com/jobs?keywords=physical+therapist&location=Pittsburgh%2C+PA
+      note: High volume, broad coverage
+    - label: Monster — Pittsburgh Healthcare
+      url: https://www.monster.com/jobs/search?q=physical+therapist&where=Pittsburgh%2C+PA
+      note: Catches listings not on other boards
+    - label: USAJobs — Pittsburgh VA / Federal PT
+      url: https://www.usajobs.gov/Search/Results?k=physical+therapist&l=Pittsburgh%2C+PA
+      note: VA Pittsburgh is a major PT employer
 rss_feeds:
-  - "https://www.simplyhired.com/search?q={keyword}&l={location}&pn=0&rss=1"
-  - "https://www.indeed.com/rss?q={keyword}&l={location}"
+- https://www.simplyhired.com/search?q={keyword}&l={location}&pn=0&rss=1
+- https://www.indeed.com/rss?q={keyword}&l={location}
+rss_feeds_remote:
+- https://www.simplyhired.com/search?q={keyword}&pn=0&rss=1
+- https://www.indeed.com/rss?q={keyword}
