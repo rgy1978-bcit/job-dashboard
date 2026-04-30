@@ -1,0 +1,95 @@
+# ============================================================
+#  Job Dashboard — Configuration
+# ============================================================
+
+max_age_days: 30
+
+adzuna:
+  country: us
+  results_per_keyword: 20
+
+profiles:
+
+  rick:
+    label: "Rick — Education & Instructional Design"
+    color: "#3b82f6"
+    location: "Pennsylvania"
+    keywords:
+      - "instructional technology specialist"
+      - "edtech coordinator"
+      - "curriculum developer"
+      - "high school business teacher"
+      - "computer science teacher"
+      - "instructional designer"
+      - "learning experience designer"
+      - "learning and development specialist"
+      - "training specialist"
+    static_rss:
+      - label: "HigherEdJobs — Instructional Technology"
+        url: "https://www.higheredjobs.com/rss/categoryFeed.cfm?catID=69"
+    manual_links:
+      - label: "AECT Job Board"
+        url: "https://www.aect.org/careers/job_board.php"
+        note: "Association for Educational Communications & Technology"
+      - label: "Teamed — L&D Jobs"
+        url: "https://www.teamedforlearning.com/job-board/"
+        note: "Instructional design & eLearning specialists"
+      - label: "EdTechJobs.io"
+        url: "https://www.edtechjobs.io/"
+        note: "K-12, Higher Ed, Corporate EdTech"
+      - label: "Inside Higher Ed Careers"
+        url: "https://careers.insidehighered.com/jobs/instructional-design/"
+        note: "University instructional design roles"
+
+  ellen:
+    label: "Ellen — PT Non-Clinical Transition"
+    color: "#22c55e"
+    # No location lock — remote roles are the priority
+    location: ""
+    keywords:
+      # --- Insurance / payer (mostly fully remote) ---
+      - "utilization review physical therapist remote"
+      - "clinical reviewer physical therapist"
+      - "prior authorization physical therapist"
+      - "clinical appeals writer physical therapist"
+      - "utilization management therapist"
+      # --- Case management ---
+      - "case manager physical therapist remote"
+      - "care coordinator physical therapist"
+      # --- Healthcare consulting & admin ---
+      - "healthcare consultant physical therapist"
+      - "rehab director physical therapist"
+      - "clinical operations physical therapist"
+      # --- Med device / health tech ---
+      - "medical device clinical specialist physical therapist"
+      - "orthopedic sales physical therapist"
+      - "clinical education specialist physical therapist"
+      # --- Academia / education ---
+      - "adjunct physical therapy faculty remote"
+      - "physical therapy clinical education coordinator"
+      # --- Wellness / health coaching ---
+      - "health coach remote physical therapist"
+      - "wellness coordinator physical therapist"
+    static_rss:
+      - label: "PTJobSite — Non-Clinical"
+        url: "https://www.ptjobsite.com/rss/jobs?l=Pennsylvania"
+    manual_links:
+      - label: "APTA Career Center"
+        url: "https://jobs.apta.org/"
+        note: "Filter by 'non-clinical' — official PT association board"
+      - label: "The Non-Clinical PT Job Board"
+        url: "https://thenonclinicalpt.com/jobs/"
+        note: "Curated board specifically for PT career transitions"
+      - label: "Vivian Health — Remote PT"
+        url: "https://www.vivian.com/therapy/physical-therapist/remote/"
+        note: "UR, case mgmt & non-clinical remote roles"
+      - label: "LinkedIn — Remote UR Physical Therapist"
+        url: "https://www.linkedin.com/jobs/search/?keywords=utilization+review+physical+therapist&f_WT=2"
+        note: "Filter pre-set to Remote — check weekly"
+      - label: "ZipRecruiter — Remote UR PT (PA)"
+        url: "https://www.ziprecruiter.com/Jobs/Remote-Utilization-Review-Physical-Therapist/--in-Pennsylvania"
+        note: "~$1,600–$2,073/wk avg in PA per ZipRecruiter"
+
+rss_feeds:
+  - "https://www.simplyhired.com/search?q={keyword}&l={location}&pn=0&rss=1"
+  - "https://www.indeed.com/rss?q={keyword}&l={location}"
