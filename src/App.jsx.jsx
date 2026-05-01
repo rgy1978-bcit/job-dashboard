@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const RICK_COLOR = "#2563eb";
 const ELLEN_COLOR = "#16a34a";
@@ -48,22 +48,7 @@ function jobCategory(kw) {
   return null;
 }
 
-const MOCK_JOBS = [
-  { id:"r1", profile:"rick",  title:"Instructional Technology Specialist",    company:"Central Bucks SD",      location:"Doylestown, PA",       remote:false, description:"Support staff and students with ed-tech integration across K-12. Google Workspace and Canvas experience preferred. Work closely with curriculum teams.",     url:"#", source:"Adzuna",      keyword:"instructional technology specialist", salary_min:52000, salary_max:68000,  posted_at:"2026-04-28T00:00:00Z" },
-  { id:"r2", profile:"rick",  title:"EdTech Curriculum Coordinator",          company:"Chester County IU",     location:"Downingtown, PA",      remote:false, description:"Lead district-wide curriculum design initiatives with a focus on blended learning models. PA Academic Standards required. Team of 4 coordinators.",          url:"#", source:"SimplyHired", keyword:"edtech coordinator",               salary_min:58000, salary_max:75000,  posted_at:"2026-04-27T00:00:00Z" },
-  { id:"r3", profile:"rick",  title:"High School Business & Marketing Teacher","company":"North Penn SD",      location:"Lansdale, PA",         remote:false, description:"Teach Principles of Business, Marketing, and Finance. NBEA certification a plus. Strong interest in student entrepreneurship programs.",                    url:"#", source:"Indeed",      keyword:"high school business teacher",        salary_min:48000, salary_max:62000,  posted_at:"2026-04-25T00:00:00Z" },
-  { id:"r4", profile:"rick",  title:"Computer Science Teacher (9–12)",        company:"Pennsbury SD",          location:"Fairless Hills, PA",   remote:false, description:"Teach AP Computer Science Principles and intro coding courses. Python or Scratch experience preferred. Project-based learning environment.",               url:"#", source:"Adzuna",      keyword:"computer science teacher",            salary_min:50000, salary_max:65000,  posted_at:"2026-04-26T00:00:00Z" },
-  { id:"r5", profile:"rick",  title:"Curriculum Developer — Digital Learning","company":"Amplify Education",  location:"Remote",               remote:true,  description:"Design standards-aligned digital curriculum for middle and high school students. Collaborate with instructional designers and content experts nationwide.", url:"#", source:"HigherEdJobs", keyword:"curriculum developer",               salary_min:65000, salary_max:85000,  posted_at:"2026-04-24T00:00:00Z" },
-  { id:"r6", profile:"rick",  title:"Instructional Designer — Corporate",     company:"SEI Investments",       location:"Oaks, PA",             remote:false, description:"Create engaging e-learning content and blended training programs using Articulate 360. Education or L&D background strongly preferred.",                  url:"#", source:"SimplyHired", keyword:"instructional designer",              salary_min:70000, salary_max:90000,  posted_at:"2026-04-23T00:00:00Z" },
-  { id:"e1", profile:"ellen", title:"Utilization Review Physical Therapist",  company:"eviCore (Evernorth)",  location:"Remote",               remote:true,  description:"Review PT documentation for medical necessity. Approve or deny insurance authorizations using evidence-based criteria. Top national UR employer for PTs.", url:"#", source:"Indeed",      keyword:"utilization review physical therapist remote", salary_min:75000, salary_max:95000,  posted_at:"2026-04-28T00:00:00Z" },
-  { id:"e2", profile:"ellen", title:"Clinical Reviewer — Physical Therapist", company:"Acentra Health",       location:"Remote",               remote:true,  description:"Evaluate medical records against clinical criteria for rehab services. Collaborate with medical directors on complex cases. Active PA PT license required.", url:"#", source:"Adzuna",      keyword:"clinical reviewer physical therapist",        salary_min:72000, salary_max:90000,  posted_at:"2026-04-27T00:00:00Z" },
-  { id:"e3", profile:"ellen", title:"Prior Authorization Specialist",         company:"Optum (UnitedHealth)", location:"Remote",               remote:true,  description:"Review prior auth requests for PT and OT services. Apply evidence-based clinical guidelines to determine appropriate level of care. Full benefits.",       url:"#", source:"SimplyHired", keyword:"prior authorization physical therapist",       salary_min:65000, salary_max:82000,  posted_at:"2026-04-26T00:00:00Z" },
-  { id:"e4", profile:"ellen", title:"Licensed Appeal Writer",                 company:"Med-Metrix",           location:"Remote",               remote:true,  description:"Write clinical appeals for denied PT/OT/rehab claims on behalf of hospital clients. Active PT license required. Strong writing and analytical skills.",   url:"#", source:"Indeed",      keyword:"clinical appeals writer physical therapist",   salary_min:60000, salary_max:78000,  posted_at:"2026-04-25T00:00:00Z" },
-  { id:"e5", profile:"ellen", title:"Orthopedic Clinical Specialist — Sales", company:"Stryker",              location:"Philadelphia, PA",     remote:false, description:"Support orthopedic sales reps in OR and clinic settings. Provide clinical education on joint replacement and sports med product lines. PT background valued.", url:"#", source:"Adzuna",      keyword:"medical device clinical specialist physical therapist", salary_min:80000, salary_max:110000, posted_at:"2026-04-24T00:00:00Z" },
-  { id:"e6", profile:"ellen", title:"Rehab Operations Director",              company:"Select Medical",       location:"Mechanicsburg, PA",    remote:false, description:"Oversee clinical operations across outpatient PT clinics in the PA region. Lead therapist hiring, compliance, and quality improvement programs.",          url:"#", source:"PTJobSite",   keyword:"rehab director physical therapist",            salary_min:90000, salary_max:120000, posted_at:"2026-04-23T00:00:00Z" },
-  { id:"e7", profile:"ellen", title:"Clinical Education Coordinator",         company:"Drexel University",    location:"Remote / Philadelphia",remote:true,  description:"Coordinate clinical placements for DPT students. Manage affiliation agreements and CI communications. Largely remote-eligible with occasional campus visits.", url:"#", source:"HigherEdJobs", keyword:"physical therapy clinical education coordinator", salary_min:58000, salary_max:72000, posted_at:"2026-04-22T00:00:00Z" },
-  { id:"e8", profile:"ellen", title:"Remote Health Coach — MSK",              company:"Hinge Health",         location:"Remote",               remote:true,  description:"Guide members through digital MSK programs using PT expertise. Async coaching model with no live patient treatment. Flexible schedule. PT license required.", url:"#", source:"Indeed",      keyword:"health coach remote physical therapist",       salary_min:65000, salary_max:85000,  posted_at:"2026-04-21T00:00:00Z" },
-];
+const MOCK_JOBS = []; // replaced by live data
 
 const fmtSal = (min, max) => {
   if (!min && !max) return null;
@@ -91,10 +76,28 @@ export default function App() {
   const [expanded, setExpanded]   = useState(null);
   const [refreshState, setRefresh] = useState("idle"); // idle | loading | success | error
   const [refreshMsg, setRefreshMsg] = useState("");
+  const [allJobs, setAllJobs]       = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  // Load real jobs.json on mount
+  useEffect(() => {
+    fetch("/jobs.json")
+      .then(r => r.json())
+      .then(data => {
+        setAllJobs(data.jobs || []);
+        if (data.updated_at) {
+          const d = new Date(data.updated_at);
+          setLastUpdated(d.toLocaleDateString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }));
+        }
+        setDataLoading(false);
+      })
+      .catch(() => setDataLoading(false));
+  }, []);
 
   const profile     = PROFILES[active];
   const isEllen     = active === "ellen";
-  const profileJobs = MOCK_JOBS.filter(j => j.profile === active);
+  const profileJobs = allJobs.filter(j => j.profile === active);
 
   const cats = useMemo(() => {
     if (!isEllen) return [];
@@ -237,7 +240,7 @@ export default function App() {
           <div className="topbar-inner">
             <div className="logo">Job<span>Board</span></div>
             <div className="topbar-right">
-              <div className="sync-badge">Auto Mon/Wed/Fri</div>
+              <div className="sync-badge">{lastUpdated ? `Updated ${lastUpdated}` : "Auto Mon/Wed/Fri"}</div>
               <button
                 className={`refresh-btn ${refreshState !== "idle" ? refreshState : ""}`}
                 onClick={handleRefresh}
@@ -270,8 +273,15 @@ export default function App() {
             ))}
           </div>
 
+          {/* Loading state */}
+          {dataLoading && (
+            <div style={{textAlign:"center", padding:"60px 20px", color:"#94a3b8", fontSize:15}}>
+              Loading jobs…
+            </div>
+          )}
+
           {/* Stats */}
-          <div className="stats">
+          {!dataLoading && <div className="stats">
             <div className="stat">
               <div className="stat-num" style={{color: pc}}>{profileJobs.length}</div>
               <div className="stat-lbl">Total Jobs</div>
@@ -290,9 +300,9 @@ export default function App() {
               <div className="stat-num" style={{color: "#7c3aed"}}>{filtered.length}</div>
               <div className="stat-lbl">Showing</div>
             </div>
-          </div>
+          </div>}
 
-          <div className="layout">
+          {!dataLoading && <div className="layout">
             {/* Main column */}
             <div>
               {/* Controls */}
