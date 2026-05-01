@@ -89,6 +89,8 @@ export default function App() {
   const [remoteOnly, setRemote]   = useState(false);
   const [sort, setSort]           = useState("newest");
   const [expanded, setExpanded]   = useState(null);
+  const [refreshState, setRefresh] = useState("idle"); // idle | loading | success | error
+  const [refreshMsg, setRefreshMsg] = useState("");
 
   const profile     = PROFILES[active];
   const isEllen     = active === "ellen";
@@ -117,6 +119,27 @@ export default function App() {
   const remoteCount = profileJobs.filter(j => j.remote).length;
   const switchProfile = id => { setActive(id); setSearch(""); setCat("All"); setRemote(false); setExpanded(null); };
 
+  const handleRefresh = async () => {
+    setRefresh("loading");
+    setRefreshMsg("");
+    try {
+      const res = await fetch("/api/refresh", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setRefresh("success");
+        setRefreshMsg("Scraper running — new results in ~2 min. Reload page to see them.");
+      } else {
+        setRefresh("error");
+        setRefreshMsg(data.error || "Something went wrong.");
+      }
+    } catch (err) {
+      setRefresh("error");
+      setRefreshMsg("Could not reach server. Check your connection.");
+    }
+    // Reset back to idle after 8 seconds
+    setTimeout(() => { setRefresh("idle"); setRefreshMsg(""); }, 8000);
+  };
+
   const styles = `
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -127,6 +150,18 @@ export default function App() {
     .logo { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px; }
     .logo span { color: ${profile.color}; }
     .sync-badge { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .refresh-btn { display: flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: white; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all .2s; color: #374151; }
+    .refresh-btn:hover:not(:disabled) { border-color: var(--pc); color: var(--pc); background: #f8fafc; }
+    .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .refresh-btn.loading { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
+    .refresh-btn.success { border-color: #86efac; color: #16a34a; background: #f0fdf4; }
+    .refresh-btn.error   { border-color: #fca5a5; color: #dc2626; background: #fef2f2; }
+    .refresh-msg { font-size: 12px; padding: 6px 12px; border-radius: 8px; max-width: 320px; }
+    .refresh-msg.success { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+    .refresh-msg.error   { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .profile-tabs { display: flex; gap: 8px; margin: 24px 0 20px; }
     .tab { flex: 1; padding: 16px 20px; border-radius: 14px; border: 2px solid #e2e8f0; background: white; cursor: pointer; text-align: left; transition: all .2s; }
     .tab:hover { border-color: #cbd5e1; }
@@ -201,8 +236,25 @@ export default function App() {
         <div className="topbar">
           <div className="topbar-inner">
             <div className="logo">Job<span>Board</span></div>
-            <div className="sync-badge">Last sync: Apr 29 · Auto Mon/Wed/Fri</div>
+            <div className="topbar-right">
+              <div className="sync-badge">Auto Mon/Wed/Fri</div>
+              <button
+                className={`refresh-btn ${refreshState !== "idle" ? refreshState : ""}`}
+                onClick={handleRefresh}
+                disabled={refreshState === "loading"}
+              >
+                <span className={refreshState === "loading" ? "spin" : ""}>
+                  {refreshState === "loading" ? "⟳" : refreshState === "success" ? "✓" : refreshState === "error" ? "✕" : "⟳"}
+                </span>
+                {refreshState === "loading" ? "Refreshing…" : refreshState === "success" ? "Done!" : refreshState === "error" ? "Failed" : "Refresh Jobs"}
+              </button>
+            </div>
           </div>
+          {refreshMsg && (
+            <div style={{maxWidth:1100, margin:"0 auto", padding:"0 16px 10px"}}>
+              <div className={`refresh-msg ${refreshState}`}>{refreshMsg}</div>
+            </div>
+          )}
         </div>
 
         <div className="dash">
