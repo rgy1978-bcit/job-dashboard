@@ -532,7 +532,27 @@ export default function App() {
           <div style={{textAlign:"center",padding:"80px 20px",color:"#94a3b8",fontSize:16}}>Loading jobs…</div>
         ) : (
           <>
-            {/* Stats */}
+            {/* Last updated bar */}
+            <div style={{
+              background:"white", border:"1px solid #e2e8f0", borderRadius:10,
+              padding:"10px 16px", marginBottom:14,
+              display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8,
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:18}}>🕐</span>
+                <div>
+                  <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>Last updated: </span>
+                  <span style={{fontSize:13,color:"#2563eb",fontWeight:700}}>{lastUpdated||"Not yet synced"}</span>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:12,color:"#94a3b8"}}>Auto-scrapes every Mon · Wed · Fri at 3am ET</span>
+                <span style={{width:6,height:6,borderRadius:"50%",background:"#22c55e",display:"inline-block",boxShadow:"0 0 0 2px #dcfce7"}}></span>
+                <span style={{fontSize:12,color:"#22c55e",fontWeight:600}}>Live</span>
+              </div>
+            </div>
+
+        {/* Stats */}
             <div className="stats-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
               {[["Total Jobs",profileJobs.length,pc],["Remote",remoteCount,"#16a34a"],["Top Salary",topSalary,"#d97706"],["Showing",filtered.length,"#7c3aed"]].map(([lbl,val,col])=>(
                 <div key={lbl} style={{background:"white",border:"1px solid #e2e8f0",borderRadius:12,padding:"14px 16px"}}>
