@@ -1,4 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase      = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const RICK_COLOR  = "#2563eb";
 const ELLEN_COLOR = "#16a34a";
@@ -52,7 +57,6 @@ const CAT_COLORS = {
   "Pediatric / Clinical":{bg:"#fdf2f8",text:"#9d174d",border:"#f9a8d4"},
 };
 const NON_CLINICAL = ["Insurance / UR","Case Management","Med Device / Sales","Admin / Operations","Education","Health Tech"];
-const CLINICAL_KWS = ["pediatric physical therapist","physical therapist pediatrics","pediatric pt outpatient","physical therapist childrens hospital","early intervention physical therapist","school physical therapist"];
 
 function jobCategory(kw) {
   if (!kw) return null;
@@ -93,69 +97,68 @@ function matchesLocation(job,cityText,zone) {
 
 const defaultFilters = () => ({salaryMin:0,jobType:"Any",includeKeyword:"",workSetting:"All",nonClinicalOnly:false,hideClinical:false,cityText:"",radiusZone:"Anywhere"});
 
-// ── Storage helpers (localStorage for job status) ─────────────────────────
-const STORAGE_KEY = "jobdash_status_v1";
-function loadStatuses() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}"); } catch { return {}; } }
-function saveStatuses(s) { try { localStorage.setItem(STORAGE_KEY,JSON.stringify(s)); } catch {} }
+// ── Supabase status sync ───────────────────────────────────────────────────
+async function loadStatusesFromDB() {
+  if (!supabase) return {};
+  const { data, error } = await supabase.from("job_statuses").select("job_id, profile, status");
+  if (error || !data) return {};
+  const map = {};
+  data.forEach(row => { map[row.job_id] = row.status; });
+  return map;
+}
+
+async function saveStatusToDB(jobId, profile, status) {
+  if (!supabase) return;
+  if (status === "none") {
+    await supabase.from("job_statuses").delete().eq("job_id", jobId);
+  } else {
+    await supabase.from("job_statuses").upsert(
+      { job_id: jobId, profile, status, updated_at: new Date().toISOString() },
+      { onConflict: "job_id,profile" }
+    );
+  }
+}
 
 // ── Swipeable Job Card ─────────────────────────────────────────────────────
-function JobCard({ job, profileColor, isEllen, status, onStatus, showExpanded }) {
+function JobCard({ job, profileColor, isEllen, status, onStatus }) {
   const [open, setOpen]       = useState(false);
   const [swipeX, setSwipeX]   = useState(0);
   const [swiping, setSwiping] = useState(false);
   const startX = useRef(null);
-  const cardRef = useRef(null);
 
-  const pay = fmtSal(job.salary_min,job.salary_max);
-  const age = daysAgo(job.posted_at);
-  const cat = jobCategory(job.keyword);
-  const cc  = cat?CAT_COLORS[cat]:null;
+  const pay  = fmtSal(job.salary_min, job.salary_max);
+  const age  = daysAgo(job.posted_at);
+  const cat  = jobCategory(job.keyword);
+  const cc   = cat ? CAT_COLORS[cat] : null;
   const type = detectJobType(job);
 
-  // Touch handlers for swipe
-  const onTouchStart = e => { startX.current = e.touches[0].clientX; setSwiping(true); };
-  const onTouchMove  = e => {
-    if (startX.current===null) return;
-    const dx = e.touches[0].clientX - startX.current;
-    setSwipeX(Math.max(-120,Math.min(120,dx)));
-  };
-  const onTouchEnd = () => {
-    if (swipeX > 60)       { onStatus("saved");     setSwipeX(0); }
-    else if (swipeX < -60) { onStatus("dismissed"); setSwipeX(0); }
-    else                    { setSwipeX(0); }
-    setSwiping(false);
-    startX.current = null;
+  const onTouchStart = e => { startX.current=e.touches[0].clientX; setSwiping(true); };
+  const onTouchMove  = e => { if (startX.current===null) return; setSwipeX(Math.max(-120,Math.min(120,e.touches[0].clientX-startX.current))); };
+  const onTouchEnd   = () => {
+    if      (swipeX>60)  { onStatus("saved");     setSwipeX(0); }
+    else if (swipeX<-60) { onStatus("dismissed"); setSwipeX(0); }
+    else                  { setSwipeX(0); }
+    setSwiping(false); startX.current=null;
   };
 
-  const isSaved     = status==="saved";
-  const isApplied   = status==="applied";
-  const isDismissed = status==="dismissed";
-
-  const swipeColor = swipeX>30?"#16a34a":swipeX<-30?"#ef4444":"transparent";
+  const isSaved=status==="saved", isApplied=status==="applied", isDismissed=status==="dismissed";
 
   return (
     <div style={{position:"relative",marginBottom:2,overflow:"hidden",borderRadius:14}}>
-      {/* Swipe hint backgrounds */}
       <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",pointerEvents:"none",zIndex:0}}>
         <span style={{fontSize:28,opacity:swipeX>30?1:0.15,transition:"opacity .15s"}}>👍</span>
         <span style={{fontSize:28,opacity:swipeX<-30?1:0.15,transition:"opacity .15s"}}>👎</span>
       </div>
-
-      <div ref={cardRef}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         onClick={()=>setOpen(!open)}
-        style={{
-          position:"relative", zIndex:1,
-          background: isDismissed?"#f8fafc":"white",
-          borderRadius:14, overflow:"hidden", cursor:"pointer",
-          border: open?"1.5px solid "+profileColor:isSaved?"1.5px solid #86efac":isApplied?"1.5px solid #93c5fd":"1.5px solid #e2e8f0",
+        style={{position:"relative",zIndex:1,background:isDismissed?"#f8fafc":"white",borderRadius:14,overflow:"hidden",cursor:"pointer",
+          border:open?"1.5px solid "+profileColor:isSaved?"1.5px solid #86efac":isApplied?"1.5px solid #93c5fd":"1.5px solid #e2e8f0",
           borderLeft:"3px solid "+(isSaved?"#16a34a":isApplied?"#2563eb":isDismissed?"#e2e8f0":profileColor),
-          opacity: isDismissed?0.5:1,
-          transform: "translateX("+swipeX+"px)",
-          transition: swiping?"none":"transform .3s ease, opacity .2s",
-          boxShadow: open?"0 4px 12px rgba(0,0,0,0.06)":"none",
-        }}
-      >
+          opacity:isDismissed?0.5:1,
+          transform:"translateX("+swipeX+"px)",
+          transition:swiping?"none":"transform .3s ease, opacity .2s",
+          boxShadow:open?"0 4px 12px rgba(0,0,0,0.06)":"none",
+        }}>
         <div style={{display:"flex",gap:12,padding:"14px 16px"}}>
           <div style={{width:42,height:42,borderRadius:10,border:"1.5px solid #e2e8f0",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,background:"#f8fafc"}}>
             {job.profile==="rick"?"📚":"🏥"}
@@ -163,14 +166,9 @@ function JobCard({ job, profileColor, isEllen, status, onStatus, showExpanded })
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
               <div style={{fontSize:14,fontWeight:700,color:isDismissed?"#94a3b8":"#0f172a",lineHeight:1.3}}>{job.title}</div>
-              {/* Status buttons */}
               <div style={{display:"flex",gap:5,flexShrink:0}} onClick={e=>e.stopPropagation()}>
-                <button title="Save" onClick={()=>onStatus(isSaved?"none":"saved")} style={{width:30,height:30,borderRadius:"50%",border:"1.5px solid "+(isSaved?"#86efac":"#e2e8f0"),background:isSaved?"#f0fdf4":"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {isSaved?"💚":"🤍"}
-                </button>
-                <button title="Dismiss" onClick={()=>onStatus(isDismissed?"none":"dismissed")} style={{width:30,height:30,borderRadius:"50%",border:"1.5px solid "+(isDismissed?"#fca5a5":"#e2e8f0"),background:isDismissed?"#fef2f2":"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  ✕
-                </button>
+                <button title="Save" onClick={()=>onStatus(isSaved?"none":"saved")} style={{width:30,height:30,borderRadius:"50%",border:"1.5px solid "+(isSaved?"#86efac":"#e2e8f0"),background:isSaved?"#f0fdf4":"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>{isSaved?"💚":"🤍"}</button>
+                <button title="Dismiss" onClick={()=>onStatus(isDismissed?"none":"dismissed")} style={{width:30,height:30,borderRadius:"50%",border:"1.5px solid "+(isDismissed?"#fca5a5":"#e2e8f0"),background:isDismissed?"#fef2f2":"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
               </div>
             </div>
             <div style={{fontSize:12,color:"#475569",marginTop:2}}>{job.company}{job.location?" · "+job.location:""}</div>
@@ -185,22 +183,13 @@ function JobCard({ job, profileColor, isEllen, status, onStatus, showExpanded })
             </div>
           </div>
         </div>
-
         {open&&(
           <div style={{padding:"12px 16px 14px",borderTop:"1px solid #f1f5f9",fontSize:13,color:"#475569",lineHeight:1.7}}>
             {job.description||"Click the link below to view the full job description."}
             <div style={{display:"flex",gap:10,marginTop:12,flexWrap:"wrap"}} onClick={e=>e.stopPropagation()}>
               <a href={job.url} target="_blank" rel="noreferrer" style={{color:profileColor,fontSize:13,fontWeight:600,textDecoration:"none"}}>View full listing →</a>
-              {isSaved&&!isApplied&&(
-                <button onClick={()=>onStatus("applied")} style={{background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  Mark as Applied ✓
-                </button>
-              )}
-              {isApplied&&(
-                <button onClick={()=>onStatus("saved")} style={{background:"#fef2f2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                  Undo Applied
-                </button>
-              )}
+              {isSaved&&!isApplied&&<button onClick={()=>onStatus("applied")} style={{background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Mark as Applied ✓</button>}
+              {isApplied&&<button onClick={()=>onStatus("saved")} style={{background:"#fef2f2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Undo Applied</button>}
             </div>
           </div>
         )}
@@ -209,7 +198,7 @@ function JobCard({ job, profileColor, isEllen, status, onStatus, showExpanded })
   );
 }
 
-// ── Custom Keyword Search ──────────────────────────────────────────────────
+// ── Keyword Search ─────────────────────────────────────────────────────────
 function KeywordSearch({ profile, onResults, onSaveKeyword }) {
   const [kw, setKw]           = useState("");
   const [loading, setLoading] = useState(false);
@@ -223,33 +212,27 @@ function KeywordSearch({ profile, onResults, onSaveKeyword }) {
       const res  = await fetch("/api/search-jobs?keyword="+encodeURIComponent(kw)+"&profile="+profile.label);
       const data = await res.json();
       if (res.ok && data.jobs?.length) {
-        onResults(data.jobs);
-        setMsg(data.jobs.length+" results found for \""+kw+"\"");
-      } else {
-        setMsg("No results found — try a different keyword.");
-      }
-    } catch {
-      setMsg("Search unavailable. Check your connection.");
-    }
+        onResults(data.jobs, kw);
+        setMsg(data.jobs.length+" results found — showing in Search Results tab");
+      } else { setMsg("No results found — try a different keyword."); }
+    } catch { setMsg("Search unavailable. Check your connection."); }
     setLoading(false);
   };
 
   return (
-    <div style={{background:"white",border:"1.5px solid #e2e8f0",borderRadius:14,padding:16,marginBottom:16}}>
+    <div style={{background:"white",border:"1.5px solid #e2e8f0",borderRadius:14,padding:16,marginBottom:14}}>
       <div style={{fontSize:12,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:10}}>🔍 Custom Keyword Search</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <input value={kw} onChange={e=>setKw(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&search()}
-          placeholder='e.g. "DPT remote" or "business professor Pittsburgh"'
+        <input value={kw} onChange={e=>setKw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()}
+          placeholder='Type a keyword and press Search…'
           style={{flex:1,minWidth:180,padding:"9px 12px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13,fontFamily:"inherit",outline:"none"}}
           onFocus={e=>e.target.style.borderColor=pc} onBlur={e=>e.target.style.borderColor="#e2e8f0"}
         />
-        <button onClick={search} disabled={loading||!kw.trim()} style={{
-          padding:"9px 18px",borderRadius:9,border:"none",background:pc,color:"white",
-          fontSize:13,fontWeight:600,fontFamily:"inherit",cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,
-        }}>{loading?"Searching…":"Search"}</button>
-        <button onClick={()=>{ if(kw.trim()){ onSaveKeyword(kw.trim()); setMsg("\""+kw+"\" added to your saved keywords — will appear in future scrapes!"); }}}
-          disabled={!kw.trim()} title="Save this keyword to your permanent scrape list"
+        <button onClick={search} disabled={loading||!kw.trim()} style={{padding:"9px 18px",borderRadius:9,border:"none",background:pc,color:"white",fontSize:13,fontWeight:600,fontFamily:"inherit",cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1}}>
+          {loading?"Searching…":"Search"}
+        </button>
+        <button onClick={()=>{if(kw.trim()){onSaveKeyword(kw.trim());setMsg('"'+kw+'" saved — will appear in future scrapes!');}}}
+          disabled={!kw.trim()}
           style={{padding:"9px 14px",borderRadius:9,border:"1.5px solid "+pc,background:"white",color:pc,fontSize:13,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>
           + Save Keyword
         </button>
@@ -262,13 +245,14 @@ function KeywordSearch({ profile, onResults, onSaveKeyword }) {
 // ── Filter Panel ───────────────────────────────────────────────────────────
 function FilterPanel({ profile, filters, setFilters, isEllen }) {
   const pc = profile.color;
-  const JOB_TYPES = ["Any","Full-time","Part-time","Contract","Adjunct"];
   const SALARY_OPTS = [0,40000,50000,60000,70000,80000,90000,100000];
+  const JOB_TYPES   = ["Any","Full-time","Part-time","Contract","Adjunct"];
 
   return (
     <div style={{background:"white",border:"1px solid #e2e8f0",borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:18}}>
       <div style={{fontWeight:700,fontSize:14,color:"#0f172a"}}>Filters</div>
 
+      {/* Location */}
       <div>
         <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>Location</div>
         <input value={filters.cityText} onChange={e=>setFilters(f=>({...f,cityText:e.target.value,radiusZone:"Anywhere"}))}
@@ -279,45 +263,42 @@ function FilterPanel({ profile, filters, setFilters, isEllen }) {
         <div style={{fontSize:11,color:"#94a3b8",marginBottom:6}}>Or Pittsburgh radius:</div>
         {["Anywhere",...Object.keys(PGH_ZONES)].map(r=>(
           <label key={r} style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"#374151",cursor:"pointer",marginBottom:4}}>
-            <input type="radio" name="radius" checked={filters.radiusZone===r&&!filters.cityText}
-              onChange={()=>setFilters(f=>({...f,radiusZone:r,cityText:""}))} style={{accentColor:pc}} />
+            <input type="radio" name={"radius_"+profile.label} checked={filters.radiusZone===r&&!filters.cityText}
+              onChange={()=>setFilters(f=>({...f,radiusZone:r,cityText:""}))} style={{accentColor:pc}}/>
             {r}
           </label>
         ))}
       </div>
 
+      {/* Salary */}
       <div>
         <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>
           Min Salary {filters.salaryMin>0?"— $"+Math.round(filters.salaryMin/1000)+"k+":"— Any"}
         </div>
         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
           {SALARY_OPTS.map(s=>(
-            <button key={s} onClick={()=>setFilters(f=>({...f,salaryMin:s}))} style={{
-              padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,
-              border:"1.5px solid "+(filters.salaryMin===s?pc:"#e2e8f0"),
-              background:filters.salaryMin===s?pc+"22":"white",
-              color:filters.salaryMin===s?pc:"#475569",
-            }}>{s===0?"Any":"$"+Math.round(s/1000)+"k+"}</button>
+            <button key={s} onClick={()=>setFilters(f=>({...f,salaryMin:s}))} style={{padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,border:"1.5px solid "+(filters.salaryMin===s?pc:"#e2e8f0"),background:filters.salaryMin===s?pc+"22":"white",color:filters.salaryMin===s?pc:"#475569"}}>
+              {s===0?"Any":"$"+Math.round(s/1000)+"k+"}
+            </button>
           ))}
         </div>
       </div>
 
+      {/* Job Type — Rick only */}
       {!isEllen&&(
         <div>
           <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>Job Type</div>
           <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
             {JOB_TYPES.map(t=>(
-              <button key={t} onClick={()=>setFilters(f=>({...f,jobType:t}))} style={{
-                padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,
-                border:"1.5px solid "+(filters.jobType===t?pc:"#e2e8f0"),
-                background:filters.jobType===t?pc+"22":"white",
-                color:filters.jobType===t?pc:"#475569",
-              }}>{t}</button>
+              <button key={t} onClick={()=>setFilters(f=>({...f,jobType:t}))} style={{padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,border:"1.5px solid "+(filters.jobType===t?pc:"#e2e8f0"),background:filters.jobType===t?pc+"22":"white",color:filters.jobType===t?pc:"#475569"}}>
+                {t}
+              </button>
             ))}
           </div>
         </div>
       )}
 
+      {/* Must include — Rick only */}
       {!isEllen&&(
         <div>
           <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Must Include</div>
@@ -329,18 +310,16 @@ function FilterPanel({ profile, filters, setFilters, isEllen }) {
         </div>
       )}
 
+      {/* Ellen-specific */}
       {isEllen&&(
         <>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>Work Setting</div>
             <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {["All","Remote only","Onsite only"].map(t=>(
-                <button key={t} onClick={()=>setFilters(f=>({...f,workSetting:t}))} style={{
-                  padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,
-                  border:"1.5px solid "+(filters.workSetting===t?pc:"#e2e8f0"),
-                  background:filters.workSetting===t?pc+"22":"white",
-                  color:filters.workSetting===t?pc:"#475569",
-                }}>{t}</button>
+                <button key={t} onClick={()=>setFilters(f=>({...f,workSetting:t}))} style={{padding:"3px 8px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,border:"1.5px solid "+(filters.workSetting===t?pc:"#e2e8f0"),background:filters.workSetting===t?pc+"22":"white",color:filters.workSetting===t?pc:"#475569"}}>
+                  {t}
+                </button>
               ))}
             </div>
           </div>
@@ -358,10 +337,9 @@ function FilterPanel({ profile, filters, setFilters, isEllen }) {
         </>
       )}
 
-      <button onClick={()=>setFilters(defaultFilters())} style={{
-        padding:"8px",borderRadius:9,border:"1.5px solid #e2e8f0",background:"white",
-        color:"#64748b",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",
-      }}>Reset all filters</button>
+      <button onClick={()=>setFilters(defaultFilters())} style={{padding:"8px",borderRadius:9,border:"1.5px solid #e2e8f0",background:"white",color:"#64748b",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>
+        Reset all filters
+      </button>
     </div>
   );
 }
@@ -409,38 +387,47 @@ function Sidebar({ profile, profileJobs, isEllen }) {
 
 // ── Main App ───────────────────────────────────────────────────────────────
 export default function App() {
-  const [active, setActive]           = useState("rick");
-  const [mainTab, setMainTab]         = useState("browse"); // browse | saved | applied
-  const [search, setSearch]           = useState("");
-  const [sort, setSort]               = useState("newest");
-  const [filters, setFilters]         = useState(defaultFilters());
-  const [showFilters, setShowFilters] = useState(true);
+  const [active, setActive]               = useState("rick");
+  const [mainTab, setMainTab]             = useState("browse");
+  const [search, setSearch]               = useState("");
+  const [sort, setSort]                   = useState("newest");
+  const [filters, setFilters]             = useState(defaultFilters());
+  const [showFilters, setShowFilters]     = useState(true);
   const [showDismissed, setShowDismissed] = useState(false);
-  const [allJobs, setAllJobs]         = useState([]);
-  const [liveResults, setLiveResults] = useState([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState("");
-  const [statuses, setStatuses]       = useState(loadStatuses());
-  const [refreshState, setRefresh]    = useState("idle");
-  const [refreshMsg, setRefreshMsg]   = useState("");
-  const [savedKeywords, setSavedKeywords] = useState([]);
+  const [allJobs, setAllJobs]             = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [dataLoading, setDataLoading]     = useState(true);
+  const [lastUpdated, setLastUpdated]     = useState("");
+  const [statuses, setStatuses]           = useState({});
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [syncMsg, setSyncMsg]             = useState("");
+  const [refreshState, setRefresh]        = useState("idle");
+  const [refreshMsg, setRefreshMsg]       = useState("");
 
+  // Load jobs
   useEffect(()=>{
     fetch("/jobs.json").then(r=>r.json()).then(data=>{
       setAllJobs(data.jobs||[]);
-      if (data.updated_at) {
-        const d=new Date(data.updated_at);
-        setLastUpdated(d.toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}));
-      }
+      if (data.updated_at){const d=new Date(data.updated_at);setLastUpdated(d.toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}));}
       setDataLoading(false);
     }).catch(()=>setDataLoading(false));
   },[]);
 
-  const handleStatus = (jobId, newStatus) => {
-    const updated = {...statuses, [jobId]: newStatus==="none"?undefined:newStatus};
+  // Load statuses from Supabase
+  useEffect(()=>{
+    loadStatusesFromDB().then(s=>{setStatuses(s);setStatusLoading(false);});
+  },[]);
+
+  const handleStatus = async (jobId, newStatus) => {
+    const updated = {...statuses};
     if (newStatus==="none") delete updated[jobId];
+    else updated[jobId] = newStatus;
     setStatuses(updated);
-    saveStatuses(updated);
+    setSyncMsg("Saving…");
+    await saveStatusToDB(jobId, active, newStatus);
+    setSyncMsg("✓ Saved");
+    setTimeout(()=>setSyncMsg(""),2000);
   };
 
   const handleRefresh = async () => {
@@ -455,48 +442,48 @@ export default function App() {
   };
 
   const handleSaveKeyword = async (kw) => {
-    setSavedKeywords(prev=>[...new Set([...prev,kw])]);
     try { await fetch("/api/save-keyword",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({keyword:kw,profile:active})}); } catch {}
   };
 
-  const profile      = PROFILES[active];
-  const isEllen      = active==="ellen";
-  const pc           = profile.color;
-  const profileJobs  = [...allJobs.filter(j=>j.profile===active), ...liveResults.filter(j=>j.profile===active)];
+  const handleSearchResults = (jobs, kw) => {
+    setSearchResults(jobs);
+    setSearchKeyword(kw);
+    setMainTab("search");
+  };
+
+  const profile     = PROFILES[active];
+  const isEllen     = active==="ellen";
+  const pc          = profile.color;
+  const profileJobs = allJobs.filter(j=>j.profile===active);
 
   const applyFilters = (jobs) => {
-    let out = jobs;
+    let out=jobs;
     if (filters.salaryMin>0) out=out.filter(j=>!j.salary_max||(j.salary_max>=filters.salaryMin)||(j.salary_min>=filters.salaryMin));
     if (!isEllen&&filters.jobType!=="Any") out=out.filter(j=>detectJobType(j)===filters.jobType);
     if (!isEllen&&filters.includeKeyword.trim()){const kw=filters.includeKeyword.trim().toLowerCase();out=out.filter(j=>(j.title||"").toLowerCase().includes(kw)||(j.description||"").toLowerCase().includes(kw)||(j.location||"").toLowerCase().includes(kw));}
     if (isEllen&&filters.workSetting==="Remote only") out=out.filter(j=>j.remote);
     if (isEllen&&filters.workSetting==="Onsite only") out=out.filter(j=>!j.remote);
     if (isEllen&&filters.nonClinicalOnly) out=out.filter(j=>{const cat=jobCategory(j.keyword);return cat&&NON_CLINICAL.includes(cat);});
-    if (isEllen&&filters.hideClinical) out=out.filter(j=>{const cat=jobCategory(j.keyword);return cat!=="Pediatric / Clinical";});
+    if (isEllen&&filters.hideClinical) out=out.filter(j=>jobCategory(j.keyword)!=="Pediatric / Clinical");
     if (filters.cityText.trim()||(filters.radiusZone&&filters.radiusZone!=="Anywhere")) out=out.filter(j=>matchesLocation(j,filters.cityText,filters.radiusZone));
     if (search.trim()){const q=search.toLowerCase();out=out.filter(j=>(j.title||"").toLowerCase().includes(q)||(j.company||"").toLowerCase().includes(q)||(j.location||"").toLowerCase().includes(q)||(j.description||"").toLowerCase().includes(q));}
     return out;
   };
 
-  const sortJobs = (jobs) => {
+  const sortJobs = jobs => {
     if (sort==="newest") return [...jobs].sort((a,b)=>(b.posted_at||"")>(a.posted_at||"")?1:-1);
     if (sort==="salary") return [...jobs].sort((a,b)=>(b.salary_max||0)-(a.salary_max||0));
     return jobs;
   };
 
-  const browseJobs = useMemo(()=>{
-    let out = applyFilters(profileJobs);
-    if (!showDismissed) out = out.filter(j=>statuses[j.id]!=="dismissed");
-    return sortJobs(out);
-  },[active,allJobs,liveResults,filters,search,sort,statuses,showDismissed]);
-
-  const savedJobs   = useMemo(()=>sortJobs(profileJobs.filter(j=>statuses[j.id]==="saved")),[active,allJobs,liveResults,statuses,sort]);
-  const appliedJobs = useMemo(()=>sortJobs(profileJobs.filter(j=>statuses[j.id]==="applied")),[active,allJobs,liveResults,statuses,sort]);
+  const browseJobs  = useMemo(()=>{let out=applyFilters(profileJobs);if(!showDismissed)out=out.filter(j=>statuses[j.id]!=="dismissed");return sortJobs(out);},[active,allJobs,filters,search,sort,statuses,showDismissed]);
+  const savedJobs   = useMemo(()=>sortJobs(profileJobs.filter(j=>statuses[j.id]==="saved")),[active,allJobs,statuses,sort]);
+  const appliedJobs = useMemo(()=>sortJobs(profileJobs.filter(j=>statuses[j.id]==="applied")),[active,allJobs,statuses,sort]);
   const dismissedCount = profileJobs.filter(j=>statuses[j.id]==="dismissed").length;
   const remoteCount    = profileJobs.filter(j=>j.remote).length;
   const topSalary      = profileJobs.filter(j=>j.salary_max).length?"$"+Math.round(Math.max(...profileJobs.filter(j=>j.salary_max).map(j=>j.salary_max))/1000)+"k":"—";
 
-  const switchProfile = id=>{ setActive(id); setSearch(""); setFilters(defaultFilters()); setMainTab("browse"); setLiveResults([]); };
+  const switchProfile = id=>{ setActive(id); setSearch(""); setFilters(defaultFilters()); setMainTab("browse"); setSearchResults([]); setSearchKeyword(""); };
 
   const activeFilters=[];
   if(filters.salaryMin>0) activeFilters.push({label:"Min $"+Math.round(filters.salaryMin/1000)+"k",reset:()=>setFilters(f=>({...f,salaryMin:0}))});
@@ -511,12 +498,8 @@ export default function App() {
   const refreshBtnStyle={display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(refreshState==="success"?"#86efac":refreshState==="error"?"#fca5a5":refreshState==="loading"?"#93c5fd":"#e2e8f0"),background:refreshState==="success"?"#f0fdf4":refreshState==="error"?"#fef2f2":refreshState==="loading"?"#eff6ff":"white",color:refreshState==="success"?"#16a34a":refreshState==="error"?"#dc2626":refreshState==="loading"?"#2563eb":"#374151",fontSize:13,fontWeight:600,fontFamily:"inherit",cursor:refreshState==="loading"?"not-allowed":"pointer",transition:"all .2s"};
 
   const TabBtn = ({id,label,count}) => (
-    <button onClick={()=>setMainTab(id)} style={{
-      padding:"8px 16px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",
-      background:mainTab===id?pc:"transparent",color:mainTab===id?"white":"#64748b",
-      transition:"all .2s",
-    }}>
-      {label} {count>0&&<span style={{background:mainTab===id?"rgba(255,255,255,0.3)":pc+"22",color:mainTab===id?"white":pc,borderRadius:20,padding:"1px 7px",fontSize:11,marginLeft:4}}>{count}</span>}
+    <button onClick={()=>setMainTab(id)} style={{padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",background:mainTab===id?pc:"transparent",color:mainTab===id?"white":"#64748b",transition:"all .2s",whiteSpace:"nowrap"}}>
+      {label}{count>0&&<span style={{background:mainTab===id?"rgba(255,255,255,0.3)":pc+"22",color:mainTab===id?"white":pc,borderRadius:20,padding:"1px 7px",fontSize:11,marginLeft:4}}>{count}</span>}
     </button>
   );
 
@@ -527,7 +510,7 @@ export default function App() {
         *{box-sizing:border-box;margin:0;padding:0}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @media(max-width:900px){.main-layout{grid-template-columns:1fr!important}.sidebar-col{display:none!important}.filter-col{display:none!important}}
-        @media(max-width:700px){.stats-grid{grid-template-columns:repeat(2,1fr)!important}.profile-tabs{flex-direction:column!important}}
+        @media(max-width:700px){.stats-grid{grid-template-columns:repeat(3,1fr)!important}.profile-tabs{flex-direction:column!important}}
       `}</style>
 
       {/* Topbar */}
@@ -535,9 +518,8 @@ export default function App() {
         <div style={{maxWidth:1200,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:60}}>
           <div style={{fontSize:18,fontWeight:700,color:"#0f172a",letterSpacing:"-0.5px"}}>Job<span style={{color:pc}}>Board</span></div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{fontSize:12,color:"#64748b",background:"#f1f5f9",padding:"4px 10px",borderRadius:20,border:"1px solid #e2e8f0"}}>
-              {lastUpdated?"Updated "+lastUpdated:"Auto Mon/Wed/Fri"}
-            </div>
+            {syncMsg&&<span style={{fontSize:12,color:"#16a34a",fontWeight:600}}>{syncMsg}</span>}
+            <div style={{fontSize:12,color:"#64748b",background:"#f1f5f9",padding:"4px 10px",borderRadius:20,border:"1px solid #e2e8f0"}}>{lastUpdated?"Updated "+lastUpdated:"Auto Mon/Wed/Fri"}</div>
             <button style={refreshBtnStyle} onClick={handleRefresh} disabled={refreshState==="loading"}>
               <span style={refreshState==="loading"?{display:"inline-block",animation:"spin 1s linear infinite"}:{}}>⟳</span>
               {refreshState==="loading"?"Refreshing…":refreshState==="success"?"Done!":refreshState==="error"?"Failed":"Refresh Jobs"}
@@ -563,11 +545,9 @@ export default function App() {
         {/* Last updated bar */}
         <div style={{background:"white",border:"1px solid #e2e8f0",borderRadius:10,padding:"10px 16px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:16}}>🕐</span>
-            <div>
-              <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>Last updated: </span>
-              <span style={{fontSize:13,color:pc,fontWeight:700}}>{lastUpdated||"Not yet synced"}</span>
-            </div>
+            <span>🕐</span>
+            <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>Last updated: </span>
+            <span style={{fontSize:13,color:pc,fontWeight:700}}>{lastUpdated||"Not yet synced"}</span>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{fontSize:12,color:"#94a3b8"}}>Auto Mon · Wed · Fri at 3am ET</span>
@@ -582,7 +562,7 @@ export default function App() {
           <>
             {/* Stats */}
             <div className="stats-grid" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:16}}>
-              {[["Total",profileJobs.length,pc],["Remote",remoteCount,"#16a34a"],["Top Salary",topSalary,"#d97706"],["Saved",savedJobs.length,"#16a34a"],["Applied",appliedJobs.length,"#2563eb"]].map(([lbl,val,col])=>(
+              {[["Total",profileJobs.length,pc],["Remote",remoteCount,"#16a34a"],["Top Salary",topSalary,"#d97706"],["💚 Saved",savedJobs.length,"#16a34a"],["✓ Applied",appliedJobs.length,"#2563eb"]].map(([lbl,val,col])=>(
                 <div key={lbl} style={{background:"white",border:"1px solid #e2e8f0",borderRadius:12,padding:"12px 14px"}}>
                   <div style={{fontSize:22,fontWeight:700,color:col,letterSpacing:-1}}>{val}</div>
                   <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginTop:2}}>{lbl}</div>
@@ -591,10 +571,11 @@ export default function App() {
             </div>
 
             {/* Main tabs */}
-            <div style={{background:"white",border:"1px solid #e2e8f0",borderRadius:12,padding:"6px",marginBottom:16,display:"inline-flex",gap:4}}>
-              <TabBtn id="browse" label="Browse" count={browseJobs.length}/>
-              <TabBtn id="saved"  label="💚 Saved"  count={savedJobs.length}/>
+            <div style={{background:"white",border:"1px solid #e2e8f0",borderRadius:12,padding:"6px",marginBottom:16,display:"inline-flex",gap:4,flexWrap:"wrap"}}>
+              <TabBtn id="browse"  label="Browse"    count={browseJobs.length}/>
+              <TabBtn id="saved"   label="💚 Saved"  count={savedJobs.length}/>
               <TabBtn id="applied" label="✓ Applied" count={appliedJobs.length}/>
+              {searchResults.length>0&&<TabBtn id="search" label={"🔍 \""+searchKeyword+"\""} count={searchResults.length}/>}
             </div>
 
             {/* Active filter badges */}
@@ -603,8 +584,7 @@ export default function App() {
                 <span style={{fontSize:12,color:"#94a3b8",fontWeight:600}}>Active filters:</span>
                 {activeFilters.map((f,i)=>(
                   <span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,fontSize:12,fontWeight:600,background:pc+"22",color:pc,border:"1px solid "+pc+"44"}}>
-                    {f.label}
-                    <span onClick={f.reset} style={{cursor:"pointer",fontSize:14,lineHeight:1}}>×</span>
+                    {f.label}<span onClick={f.reset} style={{cursor:"pointer",fontSize:14,lineHeight:1}}>×</span>
                   </span>
                 ))}
                 <button onClick={()=>setFilters(defaultFilters())} style={{fontSize:12,color:"#94a3b8",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Clear all</button>
@@ -626,12 +606,11 @@ export default function App() {
                 )}
               </div>
 
-              {/* Job list column */}
+              {/* Main content */}
               <div>
-                {/* Keyword search */}
-                <KeywordSearch profile={profile} onResults={jobs=>setLiveResults(prev=>[...prev,...jobs])} onSaveKeyword={handleSaveKeyword}/>
+                <KeywordSearch profile={profile} onResults={handleSearchResults} onSaveKeyword={handleSaveKeyword}/>
 
-                {/* Browse tab */}
+                {/* Browse */}
                 {mainTab==="browse"&&(
                   <>
                     <div style={{background:"white",border:"1px solid #e2e8f0",borderRadius:12,padding:"10px 12px",marginBottom:12,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
@@ -645,11 +624,7 @@ export default function App() {
                     </div>
                     <div style={{fontSize:12,color:"#94a3b8",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span>{browseJobs.length} listings{activeFilters.length>0?" · "+activeFilters.length+" filter"+(activeFilters.length>1?"s":"")+" active":""}</span>
-                      {dismissedCount>0&&(
-                        <button onClick={()=>setShowDismissed(!showDismissed)} style={{fontSize:12,color:"#94a3b8",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>
-                          {showDismissed?"Hide":"Show"} {dismissedCount} dismissed
-                        </button>
-                      )}
+                      {dismissedCount>0&&<button onClick={()=>setShowDismissed(!showDismissed)} style={{fontSize:12,color:"#94a3b8",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>{showDismissed?"Hide":"Show"} {dismissedCount} dismissed</button>}
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {browseJobs.length===0
@@ -657,38 +632,43 @@ export default function App() {
                           No listings match your filters.
                           <div style={{marginTop:8}}><button onClick={()=>setFilters(defaultFilters())} style={{color:pc,background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:600,textDecoration:"underline"}}>Clear filters</button></div>
                         </div>
-                        :browseJobs.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={(s)=>handleStatus(job.id,s)}/>)
+                        :browseJobs.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={s=>handleStatus(job.id,s)}/>)
                       }
                     </div>
                   </>
                 )}
 
-                {/* Saved tab */}
+                {/* Search Results */}
+                {mainTab==="search"&&(
+                  <div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                      <div style={{fontSize:13,color:"#94a3b8"}}>🔍 {searchResults.length} results for <strong>"{searchKeyword}"</strong> via TinyFish</div>
+                      <button onClick={()=>{setSearchResults([]);setSearchKeyword("");setMainTab("browse");}} style={{fontSize:12,color:"#94a3b8",background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Clear results</button>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {searchResults.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={s=>handleStatus(job.id,s)}/>)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Saved */}
                 {mainTab==="saved"&&(
                   <div>
-                    <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>💚 {savedJobs.length} saved jobs — swipe right or click 💚 to save, click "Mark as Applied" when you apply</div>
+                    <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>💚 {savedJobs.length} saved jobs — synced across all your devices via Supabase</div>
                     {savedJobs.length===0
-                      ?<div style={{textAlign:"center",padding:"50px 20px",color:"#94a3b8",fontSize:14,background:"white",borderRadius:14,border:"1px solid #e2e8f0"}}>No saved jobs yet. Browse listings and tap 💚 to save ones you like!</div>
-                      :<div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        {savedJobs.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={(s)=>handleStatus(job.id,s)}/>)}
-                      </div>
+                      ?<div style={{textAlign:"center",padding:"50px 20px",color:"#94a3b8",fontSize:14,background:"white",borderRadius:14,border:"1px solid #e2e8f0"}}>No saved jobs yet. Browse and tap 💚 to save ones you like!</div>
+                      :<div style={{display:"flex",flexDirection:"column",gap:8}}>{savedJobs.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={s=>handleStatus(job.id,s)}/>)}</div>
                     }
                   </div>
                 )}
 
-                {/* Applied tab */}
+                {/* Applied */}
                 {mainTab==="applied"&&(
                   <div>
-                    <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>✓ {appliedJobs.length} jobs applied to</div>
+                    <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>✓ {appliedJobs.length} jobs applied to — synced across all your devices</div>
                     {appliedJobs.length===0
-                      ?<div style={{textAlign:"center",padding:"50px 20px",color:"#94a3b8",fontSize:14,background:"white",borderRadius:14,border:"1px solid #e2e8f0"}}>No applications tracked yet. Save a job then click "Mark as Applied" when you apply!</div>
-                      :<div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        {appliedJobs.map(job=>(
-                          <div key={job.id}>
-                            <JobCard job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={(s)=>handleStatus(job.id,s)}/>
-                          </div>
-                        ))}
-                      </div>
+                      ?<div style={{textAlign:"center",padding:"50px 20px",color:"#94a3b8",fontSize:14,background:"white",borderRadius:14,border:"1px solid #e2e8f0"}}>No applications tracked yet. Save a job then click "Mark as Applied"!</div>
+                      :<div style={{display:"flex",flexDirection:"column",gap:8}}>{appliedJobs.map(job=><JobCard key={job.id} job={job} profileColor={pc} isEllen={isEllen} status={statuses[job.id]} onStatus={s=>handleStatus(job.id,s)}/>)}</div>
                     }
                   </div>
                 )}
@@ -703,7 +683,7 @@ export default function App() {
         )}
 
         <div style={{marginTop:40,textAlign:"center",color:"#94a3b8",fontSize:12}}>
-          Swipe right to save · Swipe left to dismiss · Tap 💚 or ✕ on desktop · Applied tracker saves between visits
+          Swipe right to save · Swipe left to dismiss · Saved jobs sync across all devices · Tap 💚 or ✕ on desktop
         </div>
       </div>
     </div>
