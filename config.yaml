@@ -113,6 +113,7 @@ profiles:
     - healthcare consultant physical therapist remote
     - adjunct physical therapy faculty remote
       - Business Ed, AI
+      - Business Education
     static_rss:
     - label: PTJobSite — Pittsburgh
       url: https://www.ptjobsite.com/rss/jobs?l=Pittsburgh%2C+PA
