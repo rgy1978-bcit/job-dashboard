@@ -115,6 +115,7 @@ profiles:
       - Business Ed, AI
       - Business Education
       - Program Director
+      - Financial Literacy
     static_rss:
     - label: PTJobSite — Pittsburgh
       url: https://www.ptjobsite.com/rss/jobs?l=Pittsburgh%2C+PA
