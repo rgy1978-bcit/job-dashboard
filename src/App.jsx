@@ -101,7 +101,7 @@ function isExcluded(job, exclusions) {
   return exclusions.some(ex => text.includes(ex.toLowerCase()));
 }
 
-const defaultFilters = () => ({salaryMin:0,jobType:"Any",includeKeyword:"",workSetting:"All",nonClinicalOnly:false,hideClinical:false,cityText:"",radiusZone:"Anywhere"});
+const defaultFilters = () => ({salaryMin:0,jobType:"Any",includeKeyword:"",workSetting:"All",nonClinicalOnly:false,hideClinical:false,cityText:"",radiusZone:"Anywhere",daysPosted:0});
 
 // ── Supabase helpers ───────────────────────────────────────────────────────
 const EXCL_TABLE = "job_exclusions";
@@ -237,6 +237,20 @@ function FilterPanel({ profile, filters, setFilters, isEllen, exclusions, onAddE
           {SALARY_OPTS.map(s=>(
             <button key={s} onClick={()=>setFilters(f=>({...f,salaryMin:s}))} style={{padding:"4px 9px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,border:"1.5px solid "+(filters.salaryMin===s?pc:"#e2e8f0"),background:filters.salaryMin===s?pc+"22":"white",color:filters.salaryMin===s?pc:"#475569"}}>
               {s===0?"Any":"$"+Math.round(s/1000)+"k+"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Date Posted */}
+      <div>
+        <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8}}>
+          Posted Within {filters.daysPosted>0?filters.daysPosted+" days":"— Any time"}
+        </div>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+          {[[0,"Any"],[1,"24h"],[3,"3 days"],[7,"7 days"],[14,"14 days"],[30,"30 days"]].map(([days,lbl])=>(
+            <button key={days} onClick={()=>setFilters(f=>({...f,daysPosted:days}))} style={{padding:"4px 9px",borderRadius:20,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:500,border:"1.5px solid "+(filters.daysPosted===days?pc:"#e2e8f0"),background:filters.daysPosted===days?pc+"22":"white",color:filters.daysPosted===days?pc:"#475569"}}>
+              {lbl}
             </button>
           ))}
         </div>
@@ -459,7 +473,8 @@ export default function App() {
   const [mainTab,setMainTab]             = useState("browse");
   const [search,setSearch]               = useState("");
   const [sort,setSort]                   = useState("newest");
-  const [filters,setFilters]             = useState(defaultFilters());
+  const [rickFilters,setRickFilters]       = useState(defaultFilters());
+  const [ellenFilters,setEllenFilters]     = useState(defaultFilters());
   const [showFilters,setShowFilters]     = useState(true);
   const [showMobileFilters,setShowMobileFilters] = useState(false);
   const [showDismissed,setShowDismissed] = useState(false);
@@ -542,6 +557,8 @@ export default function App() {
   const isEllen    = active==="ellen";
   const pc         = profile.color;
   const profileJobs= allJobs.filter(j=>j.profile===active);
+  const filters    = isEllen ? ellenFilters : rickFilters;
+  const setFilters = isEllen ? setEllenFilters : setRickFilters;
   const curExclusions = exclusions[active]||[];
 
   const applyFilters=jobs=>{
@@ -555,6 +572,11 @@ export default function App() {
     if(isEllen&&filters.workSetting==="Onsite only") out=out.filter(j=>!j.remote);
     if(isEllen&&filters.nonClinicalOnly) out=out.filter(j=>{const cat=jobCategory(j.keyword);return cat&&NON_CLINICAL.includes(cat);});
     if(isEllen&&filters.hideClinical) out=out.filter(j=>jobCategory(j.keyword)!=="Pediatric / Clinical");
+    if(filters.daysPosted>0) out=out.filter(j=>{
+      if(!j.posted_at) return true;
+      const days=Math.floor((Date.now()-new Date(j.posted_at))/86400000);
+      return days<=filters.daysPosted;
+    });
     if(filters.cityText.trim()||(filters.radiusZone&&filters.radiusZone!=="Anywhere")) out=out.filter(j=>matchesLocation(j,filters.cityText,filters.radiusZone));
     if(search.trim()){const q=search.toLowerCase();out=out.filter(j=>(j.title||"").toLowerCase().includes(q)||(j.company||"").toLowerCase().includes(q)||(j.location||"").toLowerCase().includes(q)||(j.description||"").toLowerCase().includes(q));}
     return out;
@@ -574,7 +596,7 @@ export default function App() {
   const topSalary=profileJobs.filter(j=>j.salary_max).length?"$"+Math.round(Math.max(...profileJobs.filter(j=>j.salary_max).map(j=>j.salary_max))/1000)+"k":"—";
   const excludedCount=profileJobs.filter(j=>isExcluded(j,curExclusions)).length;
 
-  const switchProfile=id=>{setActive(id);setSearch("");setFilters(defaultFilters());setMainTab("browse");setSearchResults([]);setSearchKeyword("");setShowMobileFilters(false);};
+  const switchProfile=id=>{setActive(id);setSearch("");setMainTab("browse");setSearchResults([]);setSearchKeyword("");setShowMobileFilters(false);};
 
   const activeFilters=[];
   if(filters.salaryMin>0) activeFilters.push({label:"Min $"+Math.round(filters.salaryMin/1000)+"k",reset:()=>setFilters(f=>({...f,salaryMin:0}))});
@@ -583,6 +605,7 @@ export default function App() {
   if(filters.workSetting!=="All") activeFilters.push({label:filters.workSetting,reset:()=>setFilters(f=>({...f,workSetting:"All"}))});
   if(filters.nonClinicalOnly) activeFilters.push({label:"Non-clinical only",reset:()=>setFilters(f=>({...f,nonClinicalOnly:false}))});
   if(filters.hideClinical) activeFilters.push({label:"Hide clinical",reset:()=>setFilters(f=>({...f,hideClinical:false}))});
+  if(filters.daysPosted>0) activeFilters.push({label:"Posted within "+filters.daysPosted+"d",reset:()=>setFilters(f=>({...f,daysPosted:0}))});
   if(filters.cityText) activeFilters.push({label:"City: "+filters.cityText,reset:()=>setFilters(f=>({...f,cityText:""}))});
   if(filters.radiusZone!=="Anywhere"&&!filters.cityText) activeFilters.push({label:filters.radiusZone,reset:()=>setFilters(f=>({...f,radiusZone:"Anywhere"}))});
 
